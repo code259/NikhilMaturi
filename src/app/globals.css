@@ -144,8 +144,9 @@ nav a:hover {
 
 .hero {
   display: grid;
-  min-height: 94vh;
-  padding: 8.75rem max(24px, calc((100vw - 1240px) / 2)) 4.5rem;
+  min-height: 102vh;
+  margin-bottom: -92px;
+  padding: 8.75rem max(24px, calc((100vw - 1240px) / 2)) 13rem;
   position: relative;
 }
 
@@ -158,43 +159,66 @@ nav a:hover {
 }
 
 .hero::before {
-  background:
-    radial-gradient(ellipse at 55% 50%, rgba(241, 240, 234, 0.1), transparent 24%),
-    repeating-radial-gradient(ellipse at 55% 50%, rgba(241, 240, 234, 0.052) 0 1px, transparent 1px 18px),
-    repeating-linear-gradient(102deg, rgba(241, 240, 234, 0.04) 0 1px, transparent 1px 12px);
-  border-radius: 44% 56% 47% 53% / 55% 40% 60% 45%;
-  content: "";
-  filter: contrast(140%);
-  inset: 8.5rem max(24px, calc((100vw - 1240px) / 2 + 72px)) 8rem 40%;
-  opacity: 0.22;
-  position: absolute;
+  content: none;
 }
 
 .hero::after {
   background:
-    linear-gradient(180deg, transparent 68%, var(--bg)),
-    linear-gradient(90deg, var(--bg), transparent 34%, transparent 70%, var(--bg));
+    linear-gradient(180deg, rgba(5, 5, 5, 0.03), transparent 34%, rgba(5, 5, 5, 0.76) 76%, var(--bg) 96%),
+    linear-gradient(90deg, rgba(5, 5, 5, 0.98), rgba(5, 5, 5, 0.84) 25%, rgba(5, 5, 5, 0.24) 48%, rgba(5, 5, 5, 0.08) 72%, rgba(5, 5, 5, 0.54));
   content: "";
   inset: 0;
   pointer-events: none;
   position: absolute;
+  z-index: 1;
 }
 
 .hero-copy {
   align-self: end;
-  max-width: 1120px;
+  max-width: 760px;
   position: relative;
-  z-index: 1;
+  z-index: 3;
+}
+
+.token-badge {
+  align-items: center;
+  background: rgba(5, 5, 5, 0.62);
+  border: 1px solid rgba(241, 240, 234, 0.18);
+  border-radius: 999px;
+  color: rgba(241, 240, 234, 0.7);
+  display: inline-flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 8px 11px;
+  width: fit-content;
+}
+
+.token-badge span {
+  color: rgba(241, 240, 234, 0.48);
+  font-size: 0.58rem;
+  font-weight: 760;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.token-badge strong {
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 780;
+  letter-spacing: 0.04em;
 }
 
 .hero-art {
-  bottom: 7.2rem;
-  height: min(58vh, 620px);
+  animation: heroImageBreath 18s ease-in-out infinite;
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.96;
   pointer-events: none;
   position: absolute;
-  right: max(18px, calc((100vw - 1240px) / 2 - 24px));
-  width: min(51vw, 680px);
-  z-index: 2;
+  width: 100%;
+  z-index: 0;
 }
 
 .android-bio-art {
@@ -456,6 +480,7 @@ nav a:hover {
   text-transform: uppercase;
   position: relative;
   z-index: 5;
+  text-shadow: 0 8px 36px rgba(0, 0, 0, 0.74);
 }
 
 .hero p {
@@ -509,32 +534,6 @@ nav a:hover {
   transform: translateY(-2px);
 }
 
-.mission-panel {
-  background: rgba(5, 5, 5, 0.74);
-  border: 1px solid rgba(241, 240, 234, 0.18);
-  border-radius: 8px;
-  backdrop-filter: blur(12px);
-  bottom: 4.5rem;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
-  color: var(--muted);
-  max-width: 330px;
-  padding: 18px 20px 20px;
-  position: absolute;
-  right: max(24px, calc((100vw - 1240px) / 2));
-  z-index: 4;
-}
-
-.mission-panel::before {
-  background: linear-gradient(90deg, rgba(241, 240, 234, 0.42), transparent);
-  content: "";
-  height: 1px;
-  left: 20px;
-  position: absolute;
-  right: 20px;
-  top: 0;
-}
-
-.mission-panel span,
 .featured-project span,
 .section-heading span,
 .research-card span,
@@ -555,19 +554,6 @@ nav a:hover {
   text-transform: uppercase;
 }
 
-.mission-panel strong {
-  color: var(--ink);
-  display: block;
-  font-size: 1.04rem;
-  margin-top: 10px;
-}
-
-.mission-panel p {
-  font-size: 0.84rem;
-  line-height: 1.6;
-  margin: 10px 0 0;
-}
-
 .featured-project,
 .research-section,
 .observatory-section,
@@ -577,16 +563,27 @@ nav a:hover {
 .blog-index-list {
   margin: 0 auto;
   max-width: 1240px;
-  padding: 94px 24px;
+  padding: 104px 24px;
+  position: relative;
 }
 
 .featured-project {
   align-items: end;
-  border-bottom: 1px solid var(--line);
-  border-top: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01) 34%, transparent),
+    rgba(6, 6, 6, 0.88);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(241, 240, 234, 0.16);
+  border-radius: 16px 16px 0 0;
+  box-shadow:
+    0 -34px 90px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
   display: grid;
   gap: 32px;
   grid-template-columns: 1fr auto;
+  margin-top: 0;
+  overflow: hidden;
+  z-index: 6;
 }
 
 .featured-project h2,
@@ -609,25 +606,27 @@ nav a:hover {
 }
 
 .research-list {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgba(241, 240, 234, 0.18);
   display: grid;
   margin-top: 48px;
 }
 
 .research-card {
   align-items: start;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid rgba(241, 240, 234, 0.13);
   display: grid;
   gap: 22px;
   grid-template-columns: 72px 0.8fr 1.2fr;
   min-height: 150px;
   padding: 28px 0;
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition: background 220ms ease, border-color 220ms ease, opacity 180ms ease, transform 180ms ease;
 }
 
 .research-card:hover {
-  opacity: 0.72;
-  transform: translateX(8px);
+  background: rgba(241, 240, 234, 0.045);
+  border-color: rgba(241, 240, 234, 0.28);
+  opacity: 1;
+  transform: translateX(10px);
 }
 
 .project-orb {
@@ -669,7 +668,8 @@ nav a:hover {
 .observatory-stage {
   aspect-ratio: 1.42;
   background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 28%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.1), transparent 28%),
+    linear-gradient(25deg, transparent 18%, rgba(241, 240, 234, 0.08) 34%, rgba(5, 5, 5, 0.42) 48%, transparent 68%),
     radial-gradient(circle at 50% 50%, rgba(159, 183, 200, 0.11), transparent 48%),
     #0b0b0b;
   border: 1px solid var(--line);
@@ -860,12 +860,13 @@ nav a:hover {
 }
 
 .contact-section {
-  border-top: 1px solid rgba(241, 240, 234, 0.24);
+  border-top: 1px solid rgba(241, 240, 234, 0.16);
   padding-bottom: 72px;
 }
 
 .contact-section h2 {
   color: var(--ink);
+  max-width: 1120px;
   opacity: 1;
 }
 
@@ -874,9 +875,7 @@ nav a:hover {
 }
 
 .contact-grid a {
-  background:
-    linear-gradient(145deg, rgba(241, 240, 234, 0.07), rgba(241, 240, 234, 0.025)),
-    rgba(12, 12, 12, 0.88);
+  background: rgba(241, 240, 234, 0.04);
   border-color: rgba(241, 240, 234, 0.2);
 }
 
@@ -1166,6 +1165,28 @@ nav a:hover {
   }
 }
 
+@keyframes heroImageBreath {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.025);
+  }
+}
+
+@keyframes chromeDrift {
+  0%,
+  100% {
+    transform: translate3d(-18px, 0, 0) skewY(-2deg);
+  }
+
+  50% {
+    transform: translate3d(20px, -8px, 0) skewY(-2deg);
+  }
+}
+
 @keyframes liquidSlide {
   0%,
   100% {
@@ -1213,62 +1234,32 @@ nav a:hover {
   }
 }
 
-@keyframes revealSection {
-  from {
-    opacity: 0.25;
-    transform: translateY(42px) scale(0.985);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.scroll-reveal-ready .scroll-reveal {
+  opacity: 0;
+  transform: translateY(34px);
+  transition:
+    opacity 620ms ease,
+    transform 760ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 220ms ease,
+    border-color 220ms ease;
+  transition-delay: var(--reveal-delay, 0ms);
 }
 
-@keyframes revealLine {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-
-  to {
-    clip-path: inset(0 0 0 0);
-  }
+.scroll-reveal-ready .scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-@supports (animation-timeline: view()) {
-  .featured-project,
-  .section-heading,
-  .observatory-stage,
-  .observatory-readout,
-  .writing-section,
-  .detail-body,
-  .concept-motion {
-    animation: revealSection both ease-out;
-    animation-range: entry 8% cover 32%;
-    animation-timeline: view();
-  }
+.scroll-reveal-ready .research-card.scroll-reveal,
+.scroll-reveal-ready .post-card.scroll-reveal,
+.scroll-reveal-ready .contact-grid a.scroll-reveal {
+  transform: translateY(28px) scale(0.985);
+}
 
-  .research-card,
-  .post-card,
-  .blog-index-list a {
-    animation: revealSection both ease-out;
-    animation-range: entry 0% cover 22%;
-    animation-timeline: view();
-  }
-
-  .featured-project,
-  .research-list,
-  .detail-body {
-    position: relative;
-  }
-
-  .featured-project::before,
-  .research-list::before,
-  .detail-body::before {
-    animation: revealLine both linear;
-    animation-range: entry 2% cover 18%;
-    animation-timeline: view();
-  }
+.scroll-reveal-ready .research-card.scroll-reveal.is-visible,
+.scroll-reveal-ready .post-card.scroll-reveal.is-visible,
+.scroll-reveal-ready .contact-grid a.scroll-reveal.is-visible {
+  transform: translateY(0) scale(1);
 }
 
 @media (max-width: 900px) {
@@ -1301,26 +1292,20 @@ nav a:hover {
   }
 
   .hero {
+    margin-bottom: -70px;
     min-height: 760px;
     padding-top: 6.2rem;
   }
 
   .hero::before {
-    inset: 8rem 18px 17rem 30%;
+    content: none;
   }
 
   .hero-art {
-    bottom: 165px;
-    height: 360px;
-    opacity: 0.72;
-    right: -22px;
-    width: 410px;
-  }
-
-  .mission-panel {
-    bottom: 30px;
-    left: 24px;
-    right: 24px;
+    height: 100%;
+    inset: 0;
+    opacity: 0.9;
+    width: 100%;
   }
 
   .featured-project,
@@ -1394,12 +1379,13 @@ nav a:hover {
   }
 
   .hero {
+    margin-bottom: -54px;
     min-height: 880px;
-    padding: 6.1rem 18px 2.4rem;
+    padding: 6.1rem 18px 7rem;
   }
 
   .hero::before {
-    inset: 7.2rem 8px 22rem 16px;
+    content: none;
   }
 
   .hero-copy {
@@ -1435,19 +1421,11 @@ nav a:hover {
   }
 
   .hero-art {
-    bottom: 190px;
-    height: 320px;
-    opacity: 0.64;
-    right: -82px;
-    width: 430px;
-  }
-
-  .mission-panel {
-    bottom: 22px;
-    left: 18px;
-    max-width: none;
-    padding: 16px;
-    right: 18px;
+    height: 100%;
+    inset: 0;
+    object-position: 58% center;
+    opacity: 0.86;
+    width: 100%;
   }
 
   .featured-project,
@@ -1584,13 +1562,10 @@ nav a:hover {
   }
 
   .hero-art {
-    bottom: 220px;
-    right: -150px;
+    inset: 0;
+    object-position: 62% center;
   }
 
-  .mission-panel strong {
-    font-size: 0.96rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

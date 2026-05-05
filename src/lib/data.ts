@@ -23,7 +23,7 @@ export const researchProjects: ResearchProject[] = [
     href: "https://code259.github.io/HELIX/",
     color: "#d8d6cd",
     abstract:
-      "A platform-style research effort for using predictive and generative modeling to search chemical space for RecA inhibitors that could operate as antibiotic adjuvants.",
+      "A project on using predictive and generative models to search for RecA inhibitors that could make antibiotics work better.",
     details: [
       "The expanded project page frames HELIX as a closed-loop discovery system: score selectivity, generate candidate scaffolds, and prioritize compounds for experimental follow-up.",
       "The design loop connects molecular representation learning, property prediction, and candidate generation into a workflow that can be extended as experimental evidence arrives.",
@@ -35,7 +35,7 @@ export const researchProjects: ResearchProject[] = [
     title:
       "Neural ODEs to Learn Bloch Dynamics and Replace Differentiable Simulators",
     subtitle:
-      "Learning continuous-time imaging physics for inverse MRI-style reconstruction problems.",
+      "Learning continuous-time imaging physics for inverse MRI reconstruction.",
     area: "Scientific ML",
     year: "Research",
     color: "#aeb4b8",
@@ -52,7 +52,7 @@ export const researchProjects: ResearchProject[] = [
     title:
       "Computational Investigation of hIAPP Oligomer Extracellular Cytotoxicity Mechanisms",
     subtitle:
-      "Novel therapeutic prevention of beta-cell dysfunction through mechanistic molecular investigation.",
+      "A computational look at how hIAPP oligomers may damage beta cells.",
     area: "Computational Biology",
     year: "Research",
     color: "#8f8b83",
@@ -69,7 +69,7 @@ export const researchProjects: ResearchProject[] = [
     title:
       "Portable Real-Time Machine Learning Asthma Management System for Exacerbation Prediction",
     subtitle:
-      "A deployable prediction system for respiratory risk monitoring and proactive asthma management.",
+      "A real-time prediction system for respiratory risk and asthma management.",
     area: "Health AI",
     year: "Research",
     color: "#c4c1b8",
@@ -85,7 +85,7 @@ export const researchProjects: ResearchProject[] = [
     slug: "dna-bridge-detection",
     title: "Ultrafine DNA Bridge Detection in Rat Kangaroo Cells",
     subtitle:
-      "Microscopy-driven detection of fine cellular structures that are easy to miss visually.",
+      "Computer vision for faint DNA bridges in microscopy images.",
     area: "Computer Vision",
     year: "Research",
     color: "#73777a",

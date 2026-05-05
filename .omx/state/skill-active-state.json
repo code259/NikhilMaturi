@@ -1,11 +1,11 @@
 {
   "version": 1,
   "active": false,
-  "skill": "cancel",
-  "keyword": "stop",
+  "skill": "autopilot",
+  "keyword": "I want a",
   "phase": "completing",
-  "activated_at": "2026-05-05T01:01:14.115Z",
-  "updated_at": "2026-05-05T01:01:49.565Z",
+  "activated_at": "2026-05-05T04:53:17.753Z",
+  "updated_at": "2026-05-05T05:15:13.625Z",
   "source": "keyword-detector",
   "input_lock": null
 }

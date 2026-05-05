@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { HeroField } from "@/components/HeroField";
 import { ResearchObservatory } from "@/components/ResearchObservatory";
+import { ScrollReveal } from "@/components/ScrollReveal";
 import { contacts, researchProjects } from "@/lib/data";
 import { getBlogPosts } from "@/lib/content";
 
@@ -10,6 +10,7 @@ export default function Home() {
 
   return (
     <main>
+      <ScrollReveal />
       <header className="site-header">
         <Link href="/" className="brand">
           NM
@@ -23,52 +24,31 @@ export default function Home() {
       </header>
 
       <section className="hero" id="about">
-        <HeroField />
-        <div className="hero-art android-bio-art" aria-hidden="true">
-          <div className="liquid-field">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="android-head">
-            <span className="cranial-glass" />
-            <span className="faceplate" />
-            <span className="jaw-core" />
-            <span className="neck-column" />
-            <span className="ocular-slit" />
-          </div>
-          <div className="bio-circuit">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="helix-ribbon">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-        </div>
+        <img
+          src="/images/hero-ai-bio-android-minimal.png"
+          alt=""
+          className="hero-art"
+          aria-hidden="true"
+        />
         <div className="hero-copy">
+          <div
+            className="token-badge"
+            title="Approximate size of the public notes and project copy on this site."
+          >
+            <span>Site notes</span>
+            <strong>~6.8K tokens</strong>
+          </div>
           <h1>Nikhil Maturi</h1>
           <p>
-            Building at the edge of AI for science: generative biology,
-            scientific machine learning, computational medicine, and visual systems
-            that make hard ideas easier to reason about.
+            I work on AI for scientific problems, mostly in biology and medicine.
+            I like models that help us ask better questions, not just models that
+            score higher on a benchmark.
           </p>
           <div className="hero-actions">
             <a href="#research">Explore research</a>
             <Link href="/blog">Read writing</Link>
           </div>
         </div>
-        <aside className="mission-panel">
-          <span>Current vector</span>
-          <strong>AI systems for scientific discovery</strong>
-          <p>
-            Predictive models, generative design loops, biological mechanism, and
-            explainable technical writing.
-          </p>
-        </aside>
       </section>
 
       <section className="featured-project" aria-label="Featured project">
@@ -90,7 +70,7 @@ export default function Home() {
       <section className="research-section" id="research">
         <div className="section-heading">
           <span>Research</span>
-          <h2>Past work across molecules, imaging, cells, and clinical prediction</h2>
+          <h2>Projects across molecules, imaging, cells, and clinical prediction</h2>
         </div>
         <div className="research-list">
           {researchProjects.map((project) => (
@@ -115,10 +95,10 @@ export default function Home() {
       <section className="writing-section" id="writing">
         <div className="section-heading">
           <span>Writing</span>
-          <h2>Field notes on AI systems that reason over biology</h2>
+          <h2>Notes on models, biology, and ideas I’m still working through</h2>
           <p>
-            Essays are written in Markdown and can embed small explorable diagrams when
-            static prose stops being enough.
+            Essays are Markdown-backed. Some include small interactive figures when a
+            static diagram would hide the interesting part.
           </p>
         </div>
         <div className="post-strip">
@@ -135,7 +115,7 @@ export default function Home() {
       <footer className="contact-section" id="contact">
         <div>
           <span>Contact</span>
-          <h2>Open to research conversations, collaborations, and thoughtful notes.</h2>
+          <h2>For research conversations, collaborations, or notes, email me.</h2>
         </div>
         <div className="contact-grid">
           {contacts.map((contact) => (
