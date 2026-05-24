@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Inside Agentic Tool Use — From API Request to Final Response</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300;1,9..144,400&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"/>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+:root{
+  --bg:#080a0f;--bg2:#0d1017;--bg3:#131720;
+  --surface:#181d2a;--border:#22293a;
+  --text:#e6e2da;--text2:#858da0;--text3:#434b62;
+  --accent:#4ef09a;--accent2:#2dd4f5;--accent3:#ff6630;
+  --amber:#f4c53e;--purple:#9d7ff7;
+  --glow:rgba(78,240,154,0.1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:17px;line-height:1.72;overflow-x:hidden;}
+
+/* ── HEADER ── */
+.site-header{position:fixed;top:0;left:0;right:0;z-index:200;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;transition:background .3s,border-color .3s;border-bottom:1px solid transparent;}
+.site-header.scrolled{background:rgba(8,10,15,.94);backdrop-filter:blur(18px);border-bottom-color:var(--border);}
+.logo{font-family:'DM Mono',monospace;font-size:13px;letter-spacing:.06em;color:var(--accent);text-decoration:none;}
+.nav-links{display:flex;gap:28px;}
+.nav-links a{font-size:13px;letter-spacing:.04em;color:var(--text2);text-decoration:none;transition:color .2s;}
+.nav-links a:hover{color:var(--text);}
+
+/* ── HERO ── */
+#hero{position:relative;height:700vh;}
+.hero-sticky{position:sticky;top:0;height:100vh;overflow:hidden;}
+#three-canvas{position:absolute;inset:0;width:100%;height:100%;}
+
+/* left-side stage panel */
+#stage-panel{
+  position:absolute;left:36px;top:50%;transform:translateY(-50%);
+  z-index:30;display:flex;flex-direction:column;gap:4px;
+  pointer-events:none;
+}
+.sp-item{
+  display:flex;align-items:center;gap:10px;
+  opacity:.22;transition:opacity .4s,transform .4s;
+  transform:translateX(-6px);
+}
+.sp-item.active{opacity:1;transform:translateX(0);}
+.sp-item.done{opacity:.38;transform:translateX(0);}
+.sp-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:var(--text3);}
+.sp-item.active .sp-dot{background:var(--accent);box-shadow:0 0 8px var(--accent);}
+.sp-item.done .sp-dot{background:var(--text3);}
+.sp-line{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--text3);white-space:nowrap;}
+.sp-item.active .sp-line{color:var(--text);}
+
+/* right-side annotation cards */
+#ann-panel{position:absolute;right:36px;top:50%;transform:translateY(-50%);z-index:30;width:220px;}
+.ann-card{
+  position:absolute;right:0;
+  background:rgba(8,10,15,.88);border:1px solid var(--border);
+  border-radius:8px;padding:12px 16px;backdrop-filter:blur(12px);
+  opacity:0;transform:translateX(12px);
+  transition:opacity .4s,transform .4s;
+  pointer-events:none;
+}
+.ann-card.visible{opacity:1;transform:translateX(0);}
+.ann-card-num{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.18em;color:var(--accent);margin-bottom:4px;text-transform:uppercase;}
+.ann-card-title{font-family:'DM Mono',monospace;font-size:11px;color:var(--text);font-weight:500;margin-bottom:6px;}
+.ann-card-body{font-size:11px;color:var(--text2);line-height:1.5;}
+.ann-card-tag{display:inline-block;margin-top:8px;padding:2px 8px;border-radius:20px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;border:1px solid;opacity:.7;}
+
+/* hero title */
+.hero-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:20;pointer-events:none;width:560px;}
+.hero-eyebrow{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--accent);text-transform:uppercase;margin-bottom:18px;opacity:0;animation:fu .8s .3s forwards;}
+.hero-title{font-family:'Fraunces',serif;font-size:clamp(38px,5.2vw,74px);font-weight:300;line-height:1.06;letter-spacing:-.015em;margin-bottom:18px;opacity:0;animation:fu .8s .5s forwards;}
+.hero-title em{font-style:italic;color:var(--accent2);}
+.hero-sub{font-size:15.5px;color:var(--text2);max-width:440px;margin:0 auto;opacity:0;animation:fu .8s .75s forwards;line-height:1.6;}
+@keyframes fu{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+/* mouse-drag hint */
+.drag-hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);z-index:30;display:flex;flex-direction:column;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--text3);opacity:0;animation:fu .8s 1.2s forwards;}
+.drag-icon{width:22px;height:32px;border:1.5px solid var(--text3);border-radius:11px;position:relative;}
+.drag-icon::after{content:'';position:absolute;top:5px;left:50%;transform:translateX(-50%);width:3px;height:7px;background:var(--text3);border-radius:2px;animation:scrollwheel 1.4s ease-in-out infinite;}
+@keyframes scrollwheel{0%{opacity:1;top:5px;}100%{opacity:0;top:18px;}}
+
+@media (max-width: 760px){
+  .site-header{
+    align-items:flex-start;
+    gap:14px;
+    padding:18px 22px;
+  }
+  .logo{
+    font-size:12px;
+    line-height:1.7;
+    max-width:136px;
+  }
+  .nav-links{
+    gap:20px;
+    max-width:calc(100vw - 210px);
+    overflow:hidden;
+  }
+  .nav-links a{
+    font-size:12px;
+    white-space:nowrap;
+  }
+  .nav-links a:nth-child(n+3){
+    display:none;
+  }
+  #stage-panel,
+  #ann-panel{
+    display:none;
+  }
+  .hero-text{
+    top:52%;
+    width:calc(100vw - 44px);
+  }
+  .hero-title{
+    font-size:clamp(40px,13vw,54px);
+    line-height:1.02;
+  }
+  .hero-sub{
+    font-size:14px;
+    max-width:100%;
+    padding:0 8px;
+  }
+  .drag-hint{
+    display:none;
+  }
+  #stage-label{
+    display:none;
+  }
+}
+
+/* progress bar */
+#stage-bar{position:fixed;bottom:0;left:0;right:0;height:2px;background:var(--border);z-index:300;}
+#stage-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .08s;}
+#stage-label{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--text3);z-index:300;pointer-events:none;transition:color .3s;}
+
+/* ── ARTICLE ── */
+.article{max-width:780px;margin:0 auto;padding:88px 24px 140px;}
+.section-divider{display:flex;align-items:center;gap:14px;margin:88px 0 44px;}
+.section-divider .num{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--accent);min-width:24px;}
+.section-divider hr{flex:1;border:none;border-top:1px solid var(--border);}
+.section-divider .label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--text3);text-transform:uppercase;}
+h2{font-family:'Fraunces',serif;font-size:clamp(25px,2.8vw,36px);font-weight:400;line-height:1.18;letter-spacing:-.01em;margin-bottom:22px;}
+h3{font-family:'Fraunces',serif;font-size:21px;font-weight:400;margin-bottom:14px;margin-top:38px;}
+p{margin-bottom:20px;}
+.lead{font-size:19px;line-height:1.66;margin-bottom:30px;}
+a{color:var(--accent2);text-decoration:none;}a:hover{text-decoration:underline;}
+code{font-family:'DM Mono',monospace;font-size:.82em;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--accent);}
+pre{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:22px;overflow-x:auto;margin:26px 0;font-family:'DM Mono',monospace;font-size:13px;line-height:1.65;}
+pre .kw{color:var(--purple);}pre .str{color:var(--accent);}pre .num{color:var(--amber);}pre .cmt{color:var(--text3);}pre .fn{color:var(--accent2);}pre .key{color:var(--accent3);}
+.callout{border-left:2.5px solid var(--accent2);background:rgba(45,212,245,.04);border-radius:0 8px 8px 0;padding:16px 22px;margin:26px 0;font-size:15px;}
+.callout.warn{border-left-color:var(--amber);background:rgba(244,197,62,.04);}
+.callout.note{border-left-color:var(--purple);background:rgba(157,127,247,.04);}
+.callout strong{color:var(--accent2);}.callout.warn strong{color:var(--amber);}.callout.note strong{color:var(--purple);}
+.math-block{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:22px 26px;margin:26px 0;overflow-x:auto;text-align:center;}
+.math-caption{text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:10px;}
+.chart-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:26px;margin:34px 0;overflow-x:auto;overflow-y:hidden;}
+.chart-wrap svg{max-width:100%;}
+@media (max-width:720px){.chart-wrap svg{min-width:640px;}.chart-wrap{padding:18px;}}
+.chart-title{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.1em;color:var(--text2);text-transform:uppercase;margin-bottom:18px;}
+svg text{font-family:'DM Mono',monospace;fill:var(--text2);}
+table{width:100%;border-collapse:collapse;margin:26px 0;font-size:14px;}
+thead tr{border-bottom:1px solid var(--border);}
+thead th{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;padding:10px 14px;text-align:left;}
+tbody td{padding:10px 14px;border-bottom:1px solid rgba(34,41,58,.5);}
+tbody tr:hover{background:var(--surface);}
+
+/* ── INTERACTIVE WIDGETS ── */
+.widget{background:var(--bg2);border:1px solid var(--border);border-radius:12px;margin:34px 0;overflow:hidden;}
+.widget-header{padding:18px 22px 0;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.1em;color:var(--text2);text-transform:uppercase;}
+.widget-body{padding:22px;}
+
+/* attention heatmap */
+#attn-wrap{position:relative;}
+#attn-canvas{display:block;margin:0 auto;}
+.attn-controls{display:flex;gap:16px;align-items:center;margin-top:14px;flex-wrap:wrap;}
+.attn-controls label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;}
+.attn-controls input[type=range]{accent-color:var(--accent);width:120px;}
+.attn-controls select{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:11px;padding:4px 8px;border-radius:4px;}
+
+/* token budget bar */
+.token-budget{display:flex;height:28px;border-radius:6px;overflow:hidden;margin:16px 0;font-size:11px;}
+.tb-seg{display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;white-space:nowrap;overflow:hidden;transition:flex .6s ease;}
+
+/* sampling explorer */
+#sampling-canvas{display:block;width:100%;}
+.sampling-controls{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;}
+.sampling-controls label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;}
+.sampling-controls input[type=range]{accent-color:var(--accent);width:100px;}
+.temp-value{color:var(--accent);min-width:24px;}
+
+/* kv-cache visualiser */
+#kvcache-wrap canvas{display:block;}
+
+/* agentic loop live sim */
+#loop-sim{font-family:'DM Mono',monospace;font-size:12px;}
+.loop-turn{padding:10px 14px;border-left:2px solid var(--border);margin-left:6px;margin-bottom:2px;position:relative;transition:border-color .3s;}
+.loop-turn.active{border-left-color:var(--accent);background:rgba(78,240,154,.04);}
+.loop-turn.tool{border-left-color:var(--amber);}
+.loop-turn.result{border-left-color:var(--accent2);}
+.loop-turn-badge{display:inline-block;padding:1px 7px;border-radius:3px;font-size:9px;letter-spacing:.1em;margin-right:8px;}
+.loop-btn{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:11px;padding:6px 16px;border-radius:5px;cursor:pointer;transition:border-color .2s,color .2s;margin-top:12px;}
+.loop-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+footer{border-top:1px solid var(--border);padding:44px 40px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.06em;color:var(--text3);}
+</style>
+</head>
+<body>
+
+<header class="site-header" id="site-header">
+  <a class="logo" href="#">◈ inference.blog</a>
+  <nav class="nav-links">
+    <a href="#s-request">Request</a>
+    <a href="#s-tokenize">Tokenization</a>
+    <a href="#s-inference">Inference</a>
+    <a href="#s-tool">Tool Exec</a>
+    <a href="#s-telemetry">Telemetry</a>
+  </nav>
+</header>
+
+<div id="stage-bar"><div id="stage-fill"></div></div>
+<div id="stage-label">SCROLL TO EXPLORE</div>
+
+<!-- ══════════════════════════════════════════════
+     HERO — Three.js exploded-layer scene
+══════════════════════════════════════════════ -->
+<section id="hero">
+  <div class="hero-sticky">
+    <canvas id="three-canvas"></canvas>
+
+    <!-- stage list, left -->
+    <div id="stage-panel">
+      <div class="sp-item" data-stage="0"><span class="sp-dot"></span><span class="sp-line">01 · USER REQUEST</span></div>
+      <div class="sp-item" data-stage="1"><span class="sp-dot"></span><span class="sp-line">02 · AUTH / VALIDATE</span></div>
+      <div class="sp-item" data-stage="2"><span class="sp-dot"></span><span class="sp-line">03 · CONTEXT ASSEMBLY</span></div>
+      <div class="sp-item" data-stage="3"><span class="sp-dot"></span><span class="sp-line">04 · TOKENIZATION</span></div>
+      <div class="sp-item" data-stage="4"><span class="sp-dot"></span><span class="sp-line">05 · INFERENCE</span></div>
+      <div class="sp-item" data-stage="5"><span class="sp-dot"></span><span class="sp-line">06 · OUTPUT PARSING</span></div>
+      <div class="sp-item" data-stage="6"><span class="sp-dot"></span><span class="sp-line">07 · TOOL EXECUTION</span></div>
+      <div class="sp-item" data-stage="7"><span class="sp-dot"></span><span class="sp-line">08 · FEEDBACK LOOP</span></div>
+      <div class="sp-item" data-stage="8"><span class="sp-dot"></span><span class="sp-line">09 · FINAL RESPONSE</span></div>
+      <div class="sp-item" data-stage="9"><span class="sp-dot"></span><span class="sp-line">10 · TELEMETRY</span></div>
+    </div>
+
+    <!-- annotation cards, right -->
+    <div id="ann-panel">
+      <div class="ann-card" id="ann-0" style="top:0">
+        <div class="ann-card-num">Stage 01</div>
+        <div class="ann-card-title">User Request</div>
+        <div class="ann-card-body">JSON payload over TLS 1.3 / HTTP2. The conversation, tool schemas, and hyperparameters are serialized and sent to the API gateway edge.</div>
+        <div class="ann-card-tag" style="color:var(--accent);border-color:var(--accent)">HTTP POST /v1/messages</div>
+      </div>
+      <div class="ann-card" id="ann-1" style="top:0">
+        <div class="ann-card-num">Stage 02</div>
+        <div class="ann-card-title">Auth &amp; Validation</div>
+        <div class="ann-card-body">HMAC key verification, schema validation, context-window size check, and token-bucket rate limiting — all in &lt;10 ms.</div>
+        <div class="ann-card-tag" style="color:var(--amber);border-color:var(--amber)">x-api-key → SHA-256</div>
+      </div>
+      <div class="ann-card" id="ann-2" style="top:0">
+        <div class="ann-card-num">Stage 03</div>
+        <div class="ann-card-title">Context Assembly</div>
+        <div class="ann-card-body">Messages are flattened into a single token sequence using the model's conversation template. Tool schemas are injected after the system prompt.</div>
+        <div class="ann-card-tag" style="color:var(--accent2);border-color:var(--accent2)">[SYS] … [HUMAN] … [TOOL]</div>
+      </div>
+      <div class="ann-card" id="ann-3" style="top:0">
+        <div class="ann-card-num">Stage 04</div>
+        <div class="ann-card-title">Tokenization</div>
+        <div class="ann-card-body">BPE encodes text to integer IDs. Each ID maps to a dense embedding vector via a lookup in E ∈ ℝ^(V×d). RoPE adds position information.</div>
+        <div class="ann-card-tag" style="color:var(--purple);border-color:var(--purple)">BPE · V≈100k · d=4096</div>
+      </div>
+      <div class="ann-card" id="ann-4" style="top:0">
+        <div class="ann-card-num">Stage 05</div>
+        <div class="ann-card-title">Inference</div>
+        <div class="ann-card-body">Multi-layer transformer forward pass across a sharded GPU cluster. KV-cache stores prior keys/values; only new tokens require fresh compute.</div>
+        <div class="ann-card-tag" style="color:var(--accent);border-color:var(--accent)">Tensor · Pipeline · Expert parallel</div>
+      </div>
+      <div class="ann-card" id="ann-5" style="top:0">
+        <div class="ann-card-num">Stage 06</div>
+        <div class="ann-card-title">Output Parsing</div>
+        <div class="ann-card-body">The serving stack detects tool_use blocks mid-stream. stop_reason: "tool_use" triggers dispatch without waiting for full response completion.</div>
+        <div class="ann-card-tag" style="color:var(--accent3);border-color:var(--accent3)">stop_reason: tool_use</div>
+      </div>
+      <div class="ann-card" id="ann-6" style="top:0">
+        <div class="ann-card-num">Stage 07</div>
+        <div class="ann-card-title">Tool Execution</div>
+        <div class="ann-card-body">Client or server dispatches the function call in a sandboxed environment. Independent tool calls run in parallel to minimize round-trip latency.</div>
+        <div class="ann-card-tag" style="color:var(--accent);border-color:var(--accent)">Firecracker · seccomp-bpf</div>
+      </div>
+      <div class="ann-card" id="ann-7" style="top:0">
+        <div class="ann-card-num">Stage 08</div>
+        <div class="ann-card-title">Feedback Loop</div>
+        <div class="ann-card-body">tool_result injected as a new user turn. Full updated context re-submitted. Context window grows by N_call + N_result tokens each iteration.</div>
+        <div class="ann-card-tag" style="color:var(--accent2);border-color:var(--accent2)">N_k ≈ N_0 + Σ(N_call + N_result)</div>
+      </div>
+      <div class="ann-card" id="ann-8" style="top:0">
+        <div class="ann-card-num">Stage 09</div>
+        <div class="ann-card-title">Final Response</div>
+        <div class="ann-card-body">stop_reason: end_turn triggers SSE streaming. Tokens emitted as sampled — no buffering. Speculative decoding may emit k tokens per forward pass.</div>
+        <div class="ann-card-tag" style="color:var(--amber);border-color:var(--amber)">SSE · chunked transfer</div>
+      </div>
+      <div class="ann-card" id="ann-9" style="top:0">
+        <div class="ann-card-num">Stage 10</div>
+        <div class="ann-card-title">Logging &amp; Telemetry</div>
+        <div class="ann-card-body">TTFT, TPS, tool_call_count, cache_hit_ratio, and OTel spans emitted. PII scrubbed before reaching logging systems. Used for billing and capacity planning.</div>
+        <div class="ann-card-tag" style="color:var(--purple);border-color:var(--purple)">OpenTelemetry · trace_id</div>
+      </div>
+    </div>
+
+    <div class="hero-text" id="hero-text-group">
+      <div class="hero-eyebrow">A Technical Deep-Dive</div>
+      <h1 class="hero-title">Inside <em>Agentic</em><br>Tool Use</h1>
+      <p class="hero-sub">From the moment an API request leaves your machine to the final streamed token — every layer, every decision, every loop.</p>
+    </div>
+
+    <div class="drag-hint" id="drag-hint">
+      <div class="drag-icon"></div>
+      <span>SCROLL · DRAG TO ROTATE</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     ARTICLE
+══════════════════════════════════════════════ -->
+<article class="article">
+
+<p class="lead">Modern LLM APIs are deceptively simple on the surface — you POST some JSON, you get text back. But when those APIs support <em>tool use</em>, what actually happens between request and response spans multiple subsystems: authentication layers, context management, GPU-accelerated autoregressive decoding, sandboxed function dispatch, and multi-turn feedback loops. This post walks through every stage of that journey, with the math and engineering that make it work.</p>
+
+<!-- 01 -->
+<div class="section-divider" id="s-request"><span class="num">01</span><hr/><span class="label">User Request</span></div>
+<h2>The Request Leaves Your Machine</h2>
+<p>It starts with a POST. The client serializes a <code>messages</code> array, an optional <code>system</code> prompt, a <code>tools</code> list, and generation hyperparameters into a JSON body, then fires it over TLS 1.3 to the API gateway.</p>
+<pre><span class="cmt">// Minimal agentic request</span>
+{
+  <span class="key">"model"</span>: <span class="str">"claude-sonnet-4-20250514"</span>,
+  <span class="key">"max_tokens"</span>: <span class="num">4096</span>,
+  <span class="key">"system"</span>: <span class="str">"You are a research assistant..."</span>,
+  <span class="key">"messages"</span>: [{ <span class="key">"role"</span>: <span class="str">"user"</span>, <span class="key">"content"</span>: <span class="str">"What is the weather in Tokyo?"</span> }],
+  <span class="key">"tools"</span>: [{
+    <span class="key">"name"</span>: <span class="str">"get_weather"</span>,
+    <span class="key">"description"</span>: <span class="str">"Returns current weather for a city."</span>,
+    <span class="key">"input_schema"</span>: { <span class="key">"type"</span>: <span class="str">"object"</span>, <span class="key">"properties"</span>: { <span class="key">"city"</span>: { <span class="key">"type"</span>: <span class="str">"string"</span> } }, <span class="key">"required"</span>: [<span class="str">"city"</span>] }
+  }]
+}</pre>
+<p>The wire protocol is HTTP/2, meaning the connection is multiplexed — several concurrent requests share a single TCP stream. TLS terminates at an edge load balancer, well before the request reaches compute. The plaintext JSON then travels over the internal network to the API gateway proper.</p>
+<div class="callout"><strong>Network Latency is Non-Trivial.</strong> Even at the speed of light, a transatlantic round-trip adds ~70–90 ms. Agentic loops multiply this: a 5-turn tool-use chain experiences 5× the round-trip overhead before a single token is generated.</div>
+
+<!-- 02 -->
+<div class="section-divider"><span class="num">02</span><hr/><span class="label">Authentication &amp; Validation</span></div>
+<h2>Gatekeeping Before a Single Token is Processed</h2>
+<p>The gateway's first job is to decide <em>whether</em> this request should proceed. This happens in strict order and fast — it must complete in single-digit milliseconds or it degrades perceived time-to-first-token.</p>
+<h3>API Key Authentication</h3>
+<p>The <code>x-api-key</code> header carries a long random token, typically at least 128 bits of entropy encoded in base-64. The gateway computes a cryptographic hash of the presented key and does a constant-time comparison against stored hashes — the actual secrets are never stored plaintext. Constant-time comparison is critical because otherwise an attacker can probe which key bytes match by measuring tiny response-time differences.</p>
+<h3>Schema Validation &amp; Input Sanitisation</h3>
+<p>The JSON body is validated against a schema before it touches downstream services. This catches malformed requests early: missing required fields, invalid tool definitions, wrong content block types, impossible sampling parameters, and messages that exceed the model's context window.</p>
+<p>Token counting happens here too. The serialized context must fit within the model's context window $C$. If $\text{tokens}(\text{prompt}) + \text{max\_tokens} > C$, the gateway returns a <code>400</code> immediately rather than burning capacity on a request that cannot be served.</p>
+<div class="math-block">
+  $$\text{stored} = \text{SHA-256}(k_{\text{secret}})$$
+  $$\text{auth} = \text{ct\_eq}\!\left(\text{SHA-256}(k_{\text{presented}}),\ \text{stored}\right)$$
+  <div class="math-caption">Key verification — constant-time hash comparison to prevent timing side-channel attacks</div>
+</div>
+<h3>Rate Limiting: Token Bucket</h3>
+<p>Limits are enforced on requests-per-minute (RPM) and tokens-per-minute (TPM) simultaneously. A common implementation uses a token bucket per API key in Redis or another low-latency shared store:</p>
+<div class="math-block">
+  $$B_{t+\Delta t} = \min\!\left(B_{\max},\ B_t + r\cdot\Delta t\right)$$
+  <div class="math-caption">Token bucket refill: $B$ = current tokens, $r$ = refill rate (tokens/sec), $B_{\max}$ = bucket capacity. A request consuming $n$ tokens is rejected if $B_t < n$.</div>
+</div>
+<p>If the bucket has insufficient tokens for the estimated request cost, the gateway responds <code>429 Too Many Requests</code> with a <code>Retry-After</code> header. More sophisticated systems combine token buckets with sliding-window logs so bursty but legitimate users are treated fairly across multiple regions.</p>
+
+<!-- Gateway latency chart -->
+<div class="chart-wrap">
+  <div class="chart-title">Gateway Processing — Latency Breakdown</div>
+  <div id="chart-gateway"></div>
+</div>
+
+<!-- 03 -->
+<div class="section-divider"><span class="num">03</span><hr/><span class="label">Context Assembly</span></div>
+<h2>Assembling the Context Window</h2>
+<p>Once authenticated and validated, the request moves into context assembly. This is where the clean API abstraction gets flattened into a single linear token sequence the model can consume.</p>
+<p>The <code>messages</code> array is serialized using a model-specific conversation template. A simplified version looks like:</p>
+<pre><span class="cmt">&lt;!-- BOS --&gt;</span><span class="kw">[BOS]</span> <span class="kw">[SYSTEM]</span> <span class="str">You are a helpful assistant...</span> <span class="kw">[/SYSTEM]</span>
+<span class="kw">[HUMAN]</span> <span class="str">What is the weather in Tokyo?</span> <span class="kw">[/HUMAN]</span>
+<span class="kw">[ASSISTANT]</span> <span class="cmt">← model generates from here</span></pre>
+<p>The <code>tools</code> array is serialized into this same token stream, usually after the system prompt, describing each tool's name, description, and JSON Schema. There is no separate router network deciding whether to call a tool; the tool decision emerges from the same autoregressive forward pass that generates normal text.</p>
+
+<!-- Interactive token budget bar -->
+<div class="widget">
+  <div class="widget-header">Context Window Budget — Interactive</div>
+  <div class="widget-body">
+    <p style="font-size:14px;color:var(--text2);margin-bottom:14px;">Adjust the sliders to see how context budget is allocated across a multi-turn agentic session.</p>
+    <div id="token-budget-bar" class="token-budget"></div>
+    <div id="token-budget-legend" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 14px;margin-top:12px;font-family:'DM Mono',monospace;font-size:10px;line-height:1.35;color:var(--text2);"></div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:14px;">
+      <label style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;">
+        System prompt (tokens): <input type="range" min="100" max="4000" value="800" id="sl-sys" style="accent-color:var(--accent);width:100px;"/>
+        <span id="v-sys" style="color:var(--accent);min-width:34px;">800</span>
+      </label>
+      <label style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;">
+        Tool schemas (tokens): <input type="range" min="50" max="3000" value="600" id="sl-tools" style="accent-color:var(--amber);width:100px;"/>
+        <span id="v-tools" style="color:var(--amber);min-width:34px;">600</span>
+      </label>
+      <label style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;">
+        Tool results (tokens): <input type="range" min="0" max="8000" value="2400" id="sl-results" style="accent-color:var(--accent2);width:100px;"/>
+        <span id="v-results" style="color:var(--accent2);min-width:34px;">2400</span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<h3>KV-Cache Priming</h3>
+<p>For long static system prompts — a common pattern in agentic deployments — providers cache the key-value state computed during prefill. On subsequent requests sharing the same prefix, cached KV state is reused, dramatically reducing compute and latency for the static portion:</p>
+<div class="math-block">
+  $$\text{TTFT}_{\text{cached}} \approx \frac{N_{\text{dynamic}}}{N_{\text{total}}} \cdot \text{TTFT}_{\text{cold}}$$
+  <div class="math-caption">Prompt caching speedup — only the dynamic (non-cached) tokens require fresh prefill computation. Cached tokens are typically billed at a discounted rate because prefill has already been amortized.</div>
+</div>
+
+<!-- KV cache visualiser -->
+<div class="widget" id="kvcache-wrap">
+  <div class="widget-header">KV-Cache — Autoregressive State</div>
+  <div class="widget-body">
+    <p style="font-size:14px;color:var(--text2);margin-bottom:12px;">Each cell represents one token × one layer KV state. Green = cached (reused). Blue = being computed now. Grey = future tokens.</p>
+    <canvas id="kv-canvas" height="140"></canvas>
+  </div>
+</div>
+
+<!-- 04 -->
+<div class="section-divider" id="s-tokenize"><span class="num">04</span><hr/><span class="label">Tokenization</span></div>
+<h2>Tokenization: Text to Integer IDs</h2>
+<p>BPE starts with a vocabulary of individual bytes (256 entries), then iteratively merges the most frequent adjacent pair into a new token, repeating until the vocabulary reaches target size $V$. Common English words map to one or a few tokens; rare words and code are split into subword units.</p>
+<p>Each integer token ID $t_i$ is mapped to a dense vector via the embedding matrix $\mathbf{E} \in \mathbb{R}^{V \times d}$, then position is encoded via RoPE:</p>
+<div class="math-block">
+  $$\mathbf{x}_i = \mathbf{E}[t_i] + \text{PE}_{\text{RoPE}}(i)$$
+  $$\mathbf{q}'_i = R_{\Theta,i}^d \mathbf{q}_i, \quad \mathbf{k}'_j = R_{\Theta,j}^d \mathbf{k}_j$$
+  <div class="math-caption">RoPE encodes position by rotating Q/K vectors by position-dependent angles in each attention head — enabling better extrapolation to unseen sequence lengths.</div>
+</div>
+
+<!-- Interactive token visualiser -->
+<div class="chart-wrap">
+  <div class="chart-title">BPE Tokenization — Live Viewer</div>
+  <div id="chart-tokens"></div>
+</div>
+
+<!-- 05 -->
+<div class="section-divider" id="s-inference"><span class="num">05</span><hr/><span class="label">Inference</span></div>
+<h2>Inference: The Forward Pass at Scale</h2>
+<p>At each of $L$ layers, the model applies multi-head self-attention followed by a feedforward network. The attention mechanism computes a weighted sum over all previous token representations:</p>
+<div class="math-block">
+  $$\text{Attention}(\mathbf{Q},\mathbf{K},\mathbf{V}) = \text{softmax}\!\left(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}$$
+  $$\text{MultiHead}(\mathbf{X}) = \text{Concat}(\text{head}_1,\ldots,\text{head}_H)\mathbf{W}^O$$
+  <div class="math-caption">Scaled dot-product attention and multi-head attention. $d_k$ is key dimensionality; $H$ heads attend to different representation subspaces simultaneously.</div>
+</div>
+
+<!-- Interactive attention heatmap -->
+<div class="widget">
+  <div class="widget-header">Attention Pattern Explorer — Interactive</div>
+  <div class="widget-body" id="attn-wrap">
+    <p style="font-size:14px;color:var(--text2);margin-bottom:12px;">Select an attention head and hover over tokens to see what each position attends to. This simulates a tool-use prompt: the model must attend to the tool schema to decide when to call it.</p>
+    <canvas id="attn-canvas" width="620" height="260"></canvas>
+    <div class="attn-controls">
+      <label>Head: <select id="attn-head">
+        <option value="0">Head 1 — Local context</option>
+        <option value="1">Head 2 — Tool schema focus</option>
+        <option value="2">Head 3 — Long-range copy</option>
+        <option value="3">Head 4 — Positional</option>
+      </select></label>
+      <label>Layer: <input type="range" id="attn-layer" min="0" max="7" value="4"/> <span id="attn-layer-val" style="color:var(--accent)">4</span></label>
+      <label>Temperature: <input type="range" id="attn-temp" min="1" max="20" value="8"/> <span id="attn-temp-val" style="color:var(--accent)">0.8</span></label>
+    </div>
+  </div>
+</div>
+
+<h3>KV-Cache During Generation</h3>
+<p>Autoregressive generation produces one token per forward pass. Without caching, each new token would require recomputing attention over the entire context from scratch — $O(n^2)$ per token for a sequence of length $n$. The KV-cache stores the key and value matrices for prior tokens, reducing each generation step to attend over existing state instead of rebuilding it.</p>
+<div class="math-block">
+  $$\text{KV-cache memory} = O\!\left(n \cdot L \cdot H \cdot d_k\right)$$
+  <div class="math-caption">$n$ tokens, $L$ layers, $H$ KV heads, and key/value width $d_k$. Long-context agentic systems spend a surprising amount of memory just remembering what has already happened.</div>
+</div>
+<p>This memory pressure is why serving stacks care about grouped-query attention, multi-query attention, cache paging, prefix reuse, and eviction policies. A long tool session can be bottlenecked by KV-cache residency before raw FLOPs become the limiting factor.</p>
+<h3>Sampling &amp; Temperature</h3>
+<p>Each forward pass produces logits $\mathbf{z} \in \mathbb{R}^V$. Temperature $T$ controls sharpness before sampling:</p>
+<div class="math-block">
+  $$P(t_i) = \frac{\exp(z_i/T)}{\sum_j \exp(z_j/T)}$$
+  <div class="math-caption">Temperature scaling: $T \to 0$ approaches greedy decoding; $T = 1$ is unmodified; $T > 1$ flattens the distribution. For tool calls, low $T$ prevents malformed JSON.</div>
+</div>
+
+<!-- Interactive sampling explorer -->
+<div class="widget">
+  <div class="widget-header">Sampling Distribution — Interactive</div>
+  <div class="widget-body">
+    <p style="font-size:14px;color:var(--text2);margin-bottom:12px;">Drag the temperature slider to see how it reshapes the next-token probability distribution. Top-p (nucleus) sampling selects from the minimal set of tokens summing to probability $p$.</p>
+    <canvas id="sampling-canvas" height="180"></canvas>
+    <div class="sampling-controls">
+      <label>Temperature T: <input type="range" id="temp-slider" min="1" max="30" value="10"/> <span class="temp-value" id="temp-val">1.0</span></label>
+      <label>Top-p: <input type="range" id="topp-slider" min="1" max="100" value="90"/> <span class="temp-value" id="topp-val">0.9</span></label>
+    </div>
+  </div>
+</div>
+
+<h3>Model Parallelism</h3>
+<table>
+  <thead><tr><th>Technique</th><th>What is Sharded</th><th>Benefit</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Tensor Parallelism</strong></td><td>Weight matrices split across GPUs</td><td>Reduces per-GPU memory, increases parallelism</td></tr>
+    <tr><td><strong>Pipeline Parallelism</strong></td><td>Layers split into stages</td><td>Enables models too deep for one node</td></tr>
+    <tr><td><strong>Sequence Parallelism</strong></td><td>Token sequence split across GPUs</td><td>Handles 100k+ token contexts</td></tr>
+    <tr><td><strong>Expert Parallelism</strong></td><td>MoE experts distributed</td><td>Scales capacity without proportional compute</td></tr>
+  </tbody>
+</table>
+
+<!-- TTFT chart -->
+<div class="chart-wrap">
+  <div class="chart-title">Time-to-First-Token vs. Input Length — Cold vs. Cached</div>
+  <div id="chart-ttft"></div>
+</div>
+
+<!-- 06 -->
+<div class="section-divider" id="s-tool"><span class="num">06</span><hr/><span class="label">Output Parsing + Tool Execution</span></div>
+<h2>From Tokens to Tool Calls</h2>
+<p>When the model decides a tool should be called, it emits a structured <code>tool_use</code> content block. The serving infrastructure detects this mid-stream — <code>stop_reason: "tool_use"</code> is the signal.</p>
+<pre><span class="cmt">// Model's raw response at tool_use stop</span>
+{
+  <span class="key">"role"</span>: <span class="str">"assistant"</span>,
+  <span class="key">"content"</span>: [
+    { <span class="key">"type"</span>: <span class="str">"text"</span>, <span class="key">"text"</span>: <span class="str">"I'll look up the weather in Tokyo."</span> },
+    { <span class="key">"type"</span>: <span class="str">"tool_use"</span>, <span class="key">"id"</span>: <span class="str">"toolu_01A2B3C4"</span>, <span class="key">"name"</span>: <span class="str">"get_weather"</span>, <span class="key">"input"</span>: { <span class="key">"city"</span>: <span class="str">"Tokyo"</span> } }
+  ],
+  <span class="key">"stop_reason"</span>: <span class="str">"tool_use"</span>
+}</pre>
+<div class="callout note"><strong>Constrained Decoding.</strong> Many production systems use grammar-guided sampling to guarantee syntactically valid JSON for tool calls — restricting which tokens can be sampled based on the JSON parser state. This eliminates parse errors without fine-tuning.</div>
+
+<h3>The Execution Model</h3>
+<p>In client-side tool use, the API returns at <code>stop_reason: "tool_use"</code>. Your code executes the tool, then submits a new message containing a <code>tool_result</code> block. The model never directly calls external systems; it emits structured intent, and the host runtime decides what to run.</p>
+<h3>Sandboxing &amp; Security</h3>
+<p>For server-side tool execution, sandboxing is non-negotiable. Common defenses include seccomp-bpf or gVisor syscall filtering, Firecracker microVM isolation, network egress allowlists, CPU and memory quotas, wall-clock timeouts, and strict secret-scoping so a tool can only access credentials it actually needs.</p>
+<h3>Parallel Execution</h3>
+<p>When multiple tool calls are independent (no data dependency), parallel dispatch gives:</p>
+<div class="math-block">
+  $$T_{\text{parallel}} = \max_i T_{\text{exec},i} + T_{\text{overhead}}$$
+  $$T_{\text{sequential}} = \sum_i T_{\text{exec},i} + n \cdot T_{\text{overhead}}$$
+  <div class="math-caption">For $n$ equal-cost tools, parallel execution reduces total latency by factor $\approx n$. Most production orchestrators detect independence by checking for cross-call input references.</div>
+</div>
+
+<!-- Agentic loop simulator -->
+<div class="widget">
+  <div class="widget-header">Agentic Loop — Live Simulation</div>
+  <div class="widget-body">
+    <p style="font-size:14px;color:var(--text2);margin-bottom:14px;">Step through a realistic 3-tool agentic session and watch context, token cost, and latency accumulate.</p>
+    <div id="loop-sim"></div>
+    <div style="display:flex;gap:12px;margin-top:4px;">
+      <button class="loop-btn" id="loop-next">▶ Next Step</button>
+      <button class="loop-btn" id="loop-reset">↺ Reset</button>
+    </div>
+    <div id="loop-stats" style="margin-top:14px;display:flex;gap:24px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);"></div>
+  </div>
+</div>
+
+<!-- 07 -->
+<div class="section-divider"><span class="num">07</span><hr/><span class="label">Feedback Loop</span></div>
+<h2>Feeding Results Back: The Agentic Loop</h2>
+<p>The tool result is injected as a <code>tool_result</code> block attributed to the original <code>tool_use_id</code>. The full updated messages array — the user turn, the assistant's tool call, and the tool observation — is submitted as a new API request. This is the agentic loop.</p>
+<p>Each iteration adds tokens to the context:</p>
+<div class="math-block">
+  $$N_k \approx N_0 + \sum_{i=1}^{k}\!\left(N_{\text{call},i} + N_{\text{result},i}\right)$$
+  <div class="math-caption">Context growth after $k$ tool-call rounds. $N_0$ = initial prompt, $N_{\text{call}}$ = tool_use block tokens, $N_{\text{result}}$ = tool_result tokens. With prompt caching, only the delta from the previous call is freshly computed.</div>
+</div>
+<p>This growth has two practical effects. First, cost: every later inference call prices and processes the larger accumulated context. Second, reliability: if raw tool outputs are dumped into the transcript without summarization, the model may attend to stale or irrelevant details in later turns.</p>
+<h3>Loop Termination</h3>
+<p>The loop terminates when the model returns <code>stop_reason: "end_turn"</code>, or when a guardrail fires: maximum iteration count, context-window exhaustion, repeated tool failures, or human-approval checkpoints for high-stakes actions. Good orchestrators do not merely let the model call tools forever; they bound the process and summarize failure modes back into the context.</p>
+
+<!-- 08 -->
+<div class="section-divider"><span class="num">08</span><hr/><span class="label">Final Response &amp; Streaming</span></div>
+<h2>The Final Response: Streaming to the Client</h2>
+<p>Once the model emits <code>stop_reason: "end_turn"</code>, the response streams via Server-Sent Events. Tokens are emitted as sampled — no buffering of the full response.</p>
+<h3>Speculative Decoding</h3>
+<p>A small draft model generates $k$ candidate tokens quickly; the large target model verifies them in one batched forward pass. Accepted tokens are emitted for the cost of ~one forward pass:</p>
+<div class="math-block">
+  $$\text{Speedup} \approx \frac{k\cdot\alpha}{1 + \alpha\cdot\mathbb{E}[k-m]}$$
+  <div class="math-caption">$\alpha$ = token acceptance rate, $m$ = expected rejected tokens, $k$ = draft length. Real-world speedups of 2–3× for predictable text.</div>
+</div>
+
+<!-- throughput chart -->
+<div class="chart-wrap">
+  <div class="chart-title">Throughput vs Batch Size — Standard vs Speculative Decoding</div>
+  <div id="chart-throughput"></div>
+</div>
+
+<!-- 09 -->
+<div class="section-divider" id="s-telemetry"><span class="num">09</span><hr/><span class="label">Logging &amp; Telemetry</span></div>
+<h2>Observability: What Gets Measured</h2>
+<p>After the final response is transmitted, the infrastructure emits telemetry for billing, capacity planning, quality debugging, and safety monitoring. Agentic sessions especially need traceability because the visible answer is the product of several model calls, tool calls, retries, and branching control-flow decisions.</p>
+<table>
+  <thead><tr><th>Metric</th><th>What It Measures</th><th>Typical Value</th></tr></thead>
+  <tbody>
+    <tr><td><code>ttft_ms</code></td><td>Time from request receipt to first token</td><td>200–800 ms</td></tr>
+    <tr><td><code>tps</code></td><td>Output tokens per second</td><td>50–200 tok/s</td></tr>
+    <tr><td><code>tool_call_count</code></td><td>Tool_use blocks in session</td><td>0–50</td></tr>
+    <tr><td><code>tool_latency_p99</code></td><td>99th-percentile tool execution</td><td>50–2000 ms</td></tr>
+    <tr><td><code>cache_hit_ratio</code></td><td>Fraction of input from KV-cache</td><td>0–0.95</td></tr>
+    <tr><td><code>stop_reason</code></td><td>Why generation stopped</td><td>end_turn / tool_use / max_tokens</td></tr>
+  </tbody>
+</table>
+<h3>Distributed Tracing</h3>
+<p>For multi-service pipelines, OpenTelemetry-style tracing is essential. A root trace span is created at the gateway; child spans record validation, inference prefill, token generation, each tool execution, retries, and response streaming. Correlating these by a shared <code>trace_id</code> makes it possible to reconstruct the causal timeline of a complex agentic session and explain why one run was slow or wrong.</p>
+<div class="callout warn"><strong>Privacy &amp; Data Handling.</strong> Telemetry pipelines are a significant attack surface. Tool results may contain PII or credentials that must be scrubbed before reaching logging systems. Field-level redaction policies should treat raw conversation data as a separate, access-controlled artifact from operational metrics.</div>
+
+<!-- e2e latency -->
+<div class="chart-wrap">
+  <div class="chart-title">End-to-End Latency Budget — Single Tool-Use Turn</div>
+  <div id="chart-e2e"></div>
+</div>
+
+<!-- Synthesis -->
+<div class="section-divider"><span class="num">↩</span><hr/><span class="label">Synthesis</span></div>
+<h2>The Full Picture</h2>
+<p>What feels like a single API call is an orchestrated sequence of distributed systems decisions. The agentic loop multiplies this complexity: each iteration re-traverses the full stack with a growing context window and accumulated tool results. Understanding each layer — from TLS handshakes and rate-limit algorithms to KV-cache eviction and speculative decoding — is what separates someone who <em>uses</em> an agentic framework from someone who can <em>build</em>, <em>debug</em>, and <em>optimise</em> one.</p>
+<ul style="margin:0 0 28px 20px;">
+  <li style="margin-bottom:10px"><strong>Minimise context growth.</strong> Tool results can be large. Summarize aggressively before injecting them back. Every token costs compute on every subsequent call.</li>
+  <li style="margin-bottom:10px"><strong>Exploit prompt caching.</strong> Put static system prompt and tool schemas at the start of context, never the end. Caching only works for prefixes.</li>
+  <li style="margin-bottom:10px"><strong>Parallelize independent tool calls.</strong> Concurrently executing $n$ tools reduces latency by factor $\approx n$.</li>
+  <li style="margin-bottom:10px"><strong>Design for failure.</strong> Tools fail. Networks partition. Rate limits fire. Orchestrators must handle partial failures without feeding poisoned state to the model.</li>
+  <li style="margin-bottom:10px"><strong>Trace everything.</strong> Agentic sessions are non-deterministic and hard to reproduce. OpenTelemetry spans on every call make debugging tractable.</li>
+</ul>
+<p>The stack will continue to evolve — longer contexts, faster inference, richer tool ecosystems — but the fundamental structure of the agentic loop is likely to remain: <em>plan, call, observe, reason, repeat</em>. Getting the plumbing right is what makes the rest possible.</p>
+
+</article>
+<footer>Written with care · Math by KaTeX · Charts by D3.js · 3D by Three.js · inference.blog</footer>
+
+<!-- ══════════════════════════════════════════════════
+     THREE.JS HERO
+══════════════════════════════════════════════════ -->
+<script>
+(function(){
+const canvas = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x080a0f, 0.018);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+camera.position.set(0, 6, 18);
+camera.lookAt(0, 0, 0);
+
+function setSize(){
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+setSize();
+window.addEventListener('resize', setSize);
+
+// ── LIGHTS ──
+scene.add(new THREE.AmbientLight(0x1a2040, 2.5));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(8, 14, 10);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+// Accent rim lights
+const rimG = new THREE.PointLight(0x4ef09a, 2, 30);
+rimG.position.set(-8, 4, -4);
+scene.add(rimG);
+const rimB = new THREE.PointLight(0x2dd4f5, 1.5, 25);
+rimB.position.set(8, 2, 6);
+scene.add(rimB);
+
+// ── LAYER DATA ──
+const LAYERS = [
+  { label: 'CLIENT / TLS',        hex: 0x4ef09a, stage: 0 },
+  { label: 'API GATEWAY',         hex: 0xf4c53e, stage: 1 },
+  { label: 'CONTEXT ASSEMBLY',    hex: 0x2dd4f5, stage: 2 },
+  { label: 'TOKENIZER',           hex: 0x9d7ff7, stage: 3 },
+  { label: 'TRANSFORMER STACK',   hex: 0x4ef09a, stage: 4 },
+  { label: 'SAMPLING ENGINE',     hex: 0xff6630, stage: 5 },
+  { label: 'TOOL EXECUTOR',       hex: 0x2dd4f5, stage: 6 },
+  { label: 'STREAMING BUFFER',    hex: 0xf4c53e, stage: 7 },
+  { label: 'TELEMETRY / LOGGING', hex: 0x9d7ff7, stage: 8 },
+];
+const N = LAYERS.length;
+const LAYER_W = 9.2, LAYER_D = 5.8, LAYER_H = 0.22;
+const COLLAPSED_GAP = 0.30;
+const EXPLODED_GAP  = 1.30;
+
+// Build meshes
+const layerMeshes = [];
+const layerGroup = new THREE.Group();
+scene.add(layerGroup);
+
+// Subtle detail texture – grid of tiny circuit traces
+function makeLayerTexture(hex, label){
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = Math.round(size * LAYER_D / LAYER_W);
+  const ctx = c.getContext('2d');
+  const r = (hex>>16)&0xff, g = (hex>>8)&0xff, b = hex&0xff;
+
+  // Base fill
+  ctx.fillStyle = `rgba(${r},${g},${b},0.08)`;
+  ctx.fillRect(0,0,c.width,c.height);
+
+  // Grid lines
+  ctx.strokeStyle = `rgba(${r},${g},${b},0.18)`;
+  ctx.lineWidth = 0.8;
+  for(let x=0;x<c.width;x+=32){ ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,c.height);ctx.stroke(); }
+  for(let y=0;y<c.height;y+=32){ ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(c.width,y);ctx.stroke(); }
+
+  // Circuit traces
+  ctx.strokeStyle = `rgba(${r},${g},${b},0.35)`;
+  ctx.lineWidth = 1.5;
+  for(let i=0;i<6;i++){
+    const sx = Math.random()*c.width, sy = Math.random()*c.height;
+    ctx.beginPath(); ctx.moveTo(sx,sy);
+    for(let j=0;j<4;j++){
+      const nx = sx + (Math.random()-0.5)*160, ny = sy + (Math.random()-0.5)*80;
+      ctx.lineTo(Math.round(nx/32)*32, sy);
+      ctx.lineTo(Math.round(nx/32)*32, Math.round(ny/32)*32);
+    }
+    ctx.stroke();
+  }
+
+  // Dots at intersections
+  ctx.fillStyle = `rgba(${r},${g},${b},0.55)`;
+  for(let i=0;i<12;i++){
+    const px = Math.round(Math.random()*14)*32+4, py = Math.round(Math.random()*7)*32+4;
+    ctx.beginPath(); ctx.arc(px,py,3,0,Math.PI*2); ctx.fill();
+  }
+
+  // Label text
+  ctx.fillStyle = `rgba(${r},${g},${b},0.85)`;
+  ctx.font = `bold ${Math.round(c.width/18)}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText(label, c.width/2, c.height/2 + c.width/36);
+
+  const tex = new THREE.CanvasTexture(c);
+  return tex;
+}
+
+LAYERS.forEach((l, i) => {
+  const geo = new THREE.BoxGeometry(LAYER_W, LAYER_H, LAYER_D, 1, 1, 1);
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: l.hex,
+    emissive: l.hex,
+    emissiveIntensity: 0.04,
+    metalness: 0.55,
+    roughness: 0.38,
+    transparent: true,
+    opacity: 0.88,
+    envMapIntensity: 0.6,
+    map: makeLayerTexture(l.hex, l.label),
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = { layerIdx: i, baseY: 0 };
+  layerGroup.add(mesh);
+  layerMeshes.push(mesh);
+});
+
+// Edge outlines
+const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 });
+layerMeshes.forEach((m, i) => {
+  const edges = new THREE.EdgesGeometry(m.geometry);
+  const line = new THREE.LineSegments(edges, edgeMat.clone());
+  line.userData.parentLayer = i;
+  m.add(line);
+});
+
+// Signal orb (travels between layers when active)
+const orbGeo = new THREE.SphereGeometry(0.22, 20, 20);
+const orbMat = new THREE.MeshBasicMaterial({ color: 0x4ef09a });
+const orb = new THREE.Mesh(orbGeo, orbMat);
+scene.add(orb);
+
+// Orb glow (additive sprite)
+const orbLight = new THREE.PointLight(0x4ef09a, 3, 3);
+orb.add(orbLight);
+
+// Particle system for signal trail
+const TRAIL_COUNT = 120;
+const trailGeo = new THREE.BufferGeometry();
+const trailPos = new Float32Array(TRAIL_COUNT * 3);
+const trailAlpha = new Float32Array(TRAIL_COUNT);
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+trailGeo.setAttribute('alpha', new THREE.BufferAttribute(trailAlpha, 1));
+const trailMat = new THREE.ShaderMaterial({
+  uniforms: {},
+  vertexShader: `
+    attribute float alpha;
+    varying float vAlpha;
+    void main(){
+      vAlpha = alpha;
+      gl_PointSize = alpha * 6.0;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    varying float vAlpha;
+    void main(){
+      float d = length(gl_PointCoord - vec2(0.5));
+      if(d > 0.5) discard;
+      gl_FragColor = vec4(0.30, 0.95, 0.60, vAlpha * (1.0 - d*2.0));
+    }`,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+});
+const trail = new THREE.Points(trailGeo, trailMat);
+scene.add(trail);
+const trailBuffer = [];
+
+// ── SCROLL STATE ──
+let scrollFrac = 0;
+let targetCamX = 0, targetCamY = 6;
+let camX = 0, camY = 6;
+
+// Mouse orbit (drag)
+let isDragging = false, lastMouseX = 0, lastMouseY = 0;
+let orbitX = 0, orbitY = 0.18; // radians from base
+let targetOrbitX = 0, targetOrbitY = 0.18;
+const ORBIT_RADIUS = 18;
+
+canvas.addEventListener('mousedown', e => { isDragging = true; lastMouseX = e.clientX; lastMouseY = e.clientY; });
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', e => {
+  if(!isDragging) return;
+  const dx = (e.clientX - lastMouseX) / window.innerWidth;
+  const dy = (e.clientY - lastMouseY) / window.innerHeight;
+  targetOrbitX += dx * Math.PI * 1.5;
+  targetOrbitY = Math.max(-0.3, Math.min(0.7, targetOrbitY - dy * Math.PI));
+  lastMouseX = e.clientX; lastMouseY = e.clientY;
+});
+canvas.addEventListener('touchstart', e => { isDragging = true; lastMouseX = e.touches[0].clientX; lastMouseY = e.touches[0].clientY; e.preventDefault(); }, { passive: false });
+window.addEventListener('touchend', () => isDragging = false);
+window.addEventListener('touchmove', e => {
+  if(!isDragging) return;
+  const dx = (e.touches[0].clientX - lastMouseX) / window.innerWidth;
+  const dy = (e.touches[0].clientY - lastMouseY) / window.innerHeight;
+  targetOrbitX += dx * Math.PI * 1.5;
+  targetOrbitY = Math.max(-0.3, Math.min(0.7, targetOrbitY - dy * Math.PI));
+  lastMouseX = e.touches[0].clientX; lastMouseY = e.touches[0].clientY;
+});
+
+// ── ANIMATION LOOP ──
+const clock = new THREE.Clock();
+let orbT = 0;
+
+function easeInOut(t){ return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  const elapsed = clock.getElapsedTime();
+
+  // Determine stage from scroll
+  const STAGES_FRAC = [0.05,0.16,0.28,0.39,0.50,0.61,0.70,0.79,0.87,0.94];
+  let stageIdx = -1;
+  for(let i=0;i<STAGES_FRAC.length;i++){ if(scrollFrac >= STAGES_FRAC[i]) stageIdx = i; }
+
+  // Explode progress
+  const explode = easeInOut(Math.min(1, Math.max(0, (scrollFrac - 0.08) / 0.45)));
+
+  // Position layers
+  const totalH = (N-1) * COLLAPSED_GAP;
+  layerMeshes.forEach((m, i) => {
+    const colY = (i - (N-1)/2) * COLLAPSED_GAP;
+    const expY = (i - (N-1)/2) * EXPLODED_GAP;
+    const targetY = lerp(colY, expY, explode);
+    m.position.y = lerp(m.position.y, targetY, 0.08);
+
+    // Active layer: lift slightly, brighten
+    const isActive = (i === stageIdx);
+    const isDone   = (i < stageIdx);
+    const layerScale = isActive ? 1.012 : 1.0;
+    m.scale.set(layerScale, layerScale, layerScale);
+    m.material.emissiveIntensity = lerp(m.material.emissiveIntensity, isActive ? 0.22 : (isDone ? 0.06 : 0.02), 0.1);
+    m.material.opacity = lerp(m.material.opacity, isDone ? 0.62 : (isActive ? 1.0 : (stageIdx < 0 ? 0.85 : 0.38)), 0.1);
+    // Edge opacity
+    m.children[0].material.opacity = lerp(m.children[0].material.opacity, isActive ? 0.55 : 0.1, 0.1);
+  });
+
+  // Signal orb: travels from layer to layer
+  if(stageIdx >= 0){
+    orbT += dt * 0.8;
+    const fromL = layerMeshes[Math.max(0, stageIdx-1)];
+    const toL   = layerMeshes[stageIdx];
+    const t = (Math.sin(orbT * Math.PI) * 0.5 + 0.5);
+    const ox = lerp(fromL.position.x - LAYER_W*0.35, toL.position.x + LAYER_W*0.35, t) + Math.sin(elapsed*3)*0.3;
+    const oy = lerp(fromL.position.y, toL.position.y, t) + Math.abs(Math.sin(orbT*Math.PI)) * 0.8 + LAYER_H;
+    const oz = Math.sin(elapsed*2)*0.5;
+    orb.position.set(ox, oy, oz);
+    orb.visible = true;
+
+    // Trail
+    trailBuffer.push({ x:ox, y:oy, z:oz });
+    if(trailBuffer.length > TRAIL_COUNT) trailBuffer.shift();
+    for(let j=0;j<TRAIL_COUNT;j++){
+      if(j < trailBuffer.length){
+        const p = trailBuffer[j];
+        trailPos[j*3]=p.x; trailPos[j*3+1]=p.y; trailPos[j*3+2]=p.z;
+        trailAlpha[j] = (j/trailBuffer.length) * 0.7;
+      } else {
+        trailAlpha[j] = 0;
+      }
+    }
+    trailGeo.attributes.position.needsUpdate = true;
+    trailGeo.attributes.alpha.needsUpdate = true;
+
+    // Orb color matches current layer
+    const col = new THREE.Color(LAYERS[stageIdx].hex);
+    orbMat.color.lerp(col, 0.08);
+    orbLight.color.lerp(col, 0.08);
+  } else {
+    orb.visible = false;
+  }
+
+  // Rim light pulse
+  rimG.intensity = 2 + Math.sin(elapsed * 0.7) * 0.5;
+  rimB.intensity = 1.5 + Math.sin(elapsed * 1.1) * 0.4;
+
+  // Camera orbit (smooth)
+  orbitX = lerp(orbitX, targetOrbitX, 0.08);
+  orbitY = lerp(orbitY, targetOrbitY, 0.08);
+  const baseOrbitY = lerp(0.18, 0.38, scrollFrac); // auto-elevate as we scroll
+  const finalOrbitY = orbitY + (scrollFrac > 0.05 ? baseOrbitY - 0.18 : 0);
+  camera.position.x = Math.sin(orbitX) * ORBIT_RADIUS;
+  camera.position.z = Math.cos(orbitX) * ORBIT_RADIUS;
+  camera.position.y = Math.sin(Math.max(0, Math.min(Math.PI/2-0.05, finalOrbitY))) * ORBIT_RADIUS;
+  camera.lookAt(0, lerp(0, 1, explode * 0.5), 0);
+
+  renderer.render(scene, camera);
+}
+animate();
+
+// ── SCROLL HANDLER ──
+const heroEl = document.getElementById('hero');
+const stageFill = document.getElementById('stage-fill');
+const stageLabel = document.getElementById('stage-label');
+const heroTextEl = document.getElementById('hero-text-group');
+const dragHint = document.getElementById('drag-hint');
+const siteHeader = document.getElementById('site-header');
+const spItems = document.querySelectorAll('.sp-item');
+const annCards = document.querySelectorAll('.ann-card');
+
+const STAGE_NAMES_FULL = ['USER REQUEST','AUTH / VALIDATE','CONTEXT ASSEMBLY','TOKENIZATION',
+  'INFERENCE','OUTPUT PARSING','TOOL EXECUTION','FEEDBACK LOOP','FINAL RESPONSE','TELEMETRY'];
+const STAGES_FRAC = [0.05,0.16,0.28,0.39,0.50,0.61,0.70,0.79,0.87,0.94];
+
+window.addEventListener('scroll', ()=>{
+  const heroH = heroEl.offsetHeight - window.innerHeight;
+  scrollFrac = Math.min(1, Math.max(0, window.scrollY / heroH));
+
+  stageFill.style.width = (scrollFrac*100)+'%';
+  let si = -1;
+  for(let i=0;i<STAGES_FRAC.length;i++) if(scrollFrac >= STAGES_FRAC[i]) si=i;
+
+  stageLabel.textContent = si>=0 ? `${String(si+1).padStart(2,'0')} · ${STAGE_NAMES_FULL[si]}` : 'SCROLL TO EXPLORE';
+  stageLabel.style.color = si>=0 ? 'var(--text2)' : 'var(--text3)';
+
+  // Stage panel
+  spItems.forEach((el,i)=>{
+    el.classList.toggle('active', i===si);
+    el.classList.toggle('done', i<si);
+  });
+
+  // Ann cards
+  annCards.forEach((c,i)=>{
+    c.classList.toggle('visible', i===si);
+  });
+
+  // Hero title fade
+  const titleA = Math.max(0, 1 - scrollFrac*6);
+  heroTextEl.style.opacity = titleA;
+  heroTextEl.style.transform = `translate(-50%,calc(-50% - ${scrollFrac*50}px))`;
+  dragHint.style.opacity = Math.max(0, 1 - scrollFrac*10);
+  siteHeader.classList.toggle('scrolled', window.scrollY>10);
+});
+})();
+</script>
+
+<!-- ══════════════════════════════════════════════════
+     INTERACTIVE WIDGETS + D3 CHARTS
+══════════════════════════════════════════════════ -->
+<script>
+document.addEventListener('DOMContentLoaded', ()=>{
+
+const P = {
+  bg:'#0d1017', border:'#22293a', text:'#858da0', text3:'#434b62',
+  accent:'#4ef09a', accent2:'#2dd4f5', amber:'#f4c53e',
+  purple:'#9d7ff7', orange:'#ff6630'
+};
+
+// ═══════════════════════════════════════════
+// 1. GATEWAY LATENCY — animated horizontal bars
+// ═══════════════════════════════════════════
+(function(){
+  const el = document.getElementById('chart-gateway');
+  if(!el) return;
+  const data = [
+    {label:'TLS Handshake',ms:8,c:P.accent2},
+    {label:'Key Auth (HMAC)',ms:2,c:P.accent},
+    {label:'Schema Validation',ms:3,c:P.amber},
+    {label:'Token Counting',ms:5,c:P.purple},
+    {label:'Rate Limit (Redis)',ms:2,c:P.orange},
+    {label:'KV-Cache Lookup',ms:4,c:P.accent2},
+    {label:'Queue / Routing',ms:6,c:P.text},
+  ];
+  const W=el.offsetWidth||680, H=220;
+  const m={top:14,right:68,bottom:30,left:150};
+  const iW=W-m.left-m.right, iH=H-m.top-m.bottom;
+  const svg=d3.select(el).append('svg').attr('width',W).attr('height',H);
+  const g=svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
+  const x=d3.scaleLinear().domain([0,d3.max(data,d=>d.ms)*1.25]).range([0,iW]);
+  const y=d3.scaleBand().domain(data.map(d=>d.label)).range([0,iH]).padding(0.32);
+
+  g.selectAll('.gl').data(x.ticks(4)).enter().append('line')
+    .attr('x1',d=>x(d)).attr('x2',d=>x(d)).attr('y1',0).attr('y2',iH)
+    .attr('stroke',P.border).attr('stroke-dasharray','3,4');
+
+  const bars=g.selectAll('.bar').data(data).enter().append('rect')
+    .attr('x',0).attr('y',d=>y(d.label)).attr('width',0).attr('height',y.bandwidth())
+    .attr('fill',d=>d.c).attr('rx',3).attr('opacity',.85);
+
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ bars.transition().duration(900).delay((_,i)=>i*80).attr('width',d=>x(d.ms)); obs.disconnect(); }});
+  },{threshold:.3});
+  obs.observe(el);
+
+  g.selectAll('.val').data(data).enter().append('text')
+    .attr('x',d=>x(d.ms)+5).attr('y',d=>y(d.label)+y.bandwidth()/2+4)
+    .text(d=>`${d.ms}ms`).attr('font-size',11).attr('fill',d=>d.c);
+  g.selectAll('.yl').data(data).enter().append('text')
+    .attr('x',-8).attr('y',d=>y(d.label)+y.bandwidth()/2+4)
+    .attr('text-anchor','end').attr('font-size',11).attr('fill',P.text).text(d=>d.label);
+  g.append('g').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x).ticks(4).tickFormat(d=>`${d}ms`))
+    .call(g=>g.select('.domain').remove())
+    .call(g=>g.selectAll('.tick line').attr('stroke',P.border))
+    .call(g=>g.selectAll('text').attr('fill',P.text3).attr('font-size',10));
+})();
+
+// ═══════════════════════════════════════════
+// 2. TOKEN BUDGET INTERACTIVE BAR
+// ═══════════════════════════════════════════
+(function(){
+  const bar = document.getElementById('token-budget-bar');
+  const legend = document.getElementById('token-budget-legend');
+  if(!bar) return;
+  const WINDOW = 200000;
+  const slSys = document.getElementById('sl-sys');
+  const slTools = document.getElementById('sl-tools');
+  const slResults = document.getElementById('sl-results');
+  const vSys = document.getElementById('v-sys');
+  const vTools = document.getElementById('v-tools');
+  const vResults = document.getElementById('v-results');
+
+  const segs = [
+    {id:'sys',    label:'System Prompt',  color:P.accent,   get:()=>+slSys.value},
+    {id:'tools',  label:'Tool Schemas',   color:P.amber,    get:()=>+slTools.value},
+    {id:'history',label:'Conversation',   color:P.accent2,  get:()=>1200},
+    {id:'results',label:'Tool Results',   color:P.purple,   get:()=>+slResults.value},
+    {id:'output', label:'max_tokens',     color:P.orange,   get:()=>4096},
+    {id:'free',   label:'Available',      color:P.border,   get:()=>0},
+  ];
+
+  function update(){
+    vSys.textContent = slSys.value;
+    vTools.textContent = slTools.value;
+    vResults.textContent = slResults.value;
+    const used = segs.slice(0,-1).reduce((s,sg)=>s+sg.get(),0);
+    segs[segs.length-1].get = ()=>Math.max(0,WINDOW-used);
+    const total = segs.reduce((s,sg)=>s+sg.get(),0);
+    bar.innerHTML='';
+    legend.innerHTML='';
+    segs.forEach(sg=>{
+      const pct = (sg.get()/total*100).toFixed(1);
+      const div=document.createElement('div');
+      div.className='tb-seg';
+      div.style.flex=sg.get();
+      div.style.background=sg.color+'33';
+      div.style.borderRight=`1px solid ${sg.color}44`;
+      div.style.color=sg.color;
+      if(sg.get()>total*.04) div.textContent=`${Math.round(sg.get()/1000)}k`;
+      div.title=`${sg.label}: ${sg.get().toLocaleString()} tokens (${pct}%)`;
+      bar.appendChild(div);
+      const li=document.createElement('span');
+      li.style.whiteSpace='normal'; li.innerHTML=`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${sg.color};margin-right:6px;vertical-align:middle"></span><span>${sg.label}: ${sg.get().toLocaleString()}</span>`;
+      legend.appendChild(li);
+    });
+  }
+  [slSys,slTools,slResults].forEach(s=>s.addEventListener('input',update));
+  update();
+})();
+
+// ═══════════════════════════════════════════
+// 3. KV-CACHE VISUALISER
+// ═══════════════════════════════════════════
+(function(){
+  const c = document.getElementById('kv-canvas');
+  if(!c) return;
+  const ctx = c.getContext('2d');
+  const COLS=48, ROWS=8, CELL=13, GAP=2;
+  c.width  = COLS*(CELL+GAP)+1;
+  c.height = ROWS*(CELL+GAP)+1;
+
+  let cachedUntil = 32; // tokens that are cached
+  let currentPos  = 33;
+  let animId;
+
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    for(let row=0;row<ROWS;row++){
+      for(let col=0;col<COLS;col++){
+        const x=col*(CELL+GAP), y=row*(CELL+GAP);
+        let color;
+        if(col < cachedUntil){
+          // cached (green)
+          const a = 0.45 + (row/ROWS)*0.25;
+          color = `rgba(78,240,154,${a})`;
+        } else if(col === currentPos){
+          // computing now (blue pulse)
+          const pulse = 0.6 + 0.4*Math.sin(Date.now()/200);
+          color = `rgba(45,212,245,${pulse})`;
+        } else {
+          color = `rgba(34,41,58,0.4)`;
+        }
+        ctx.fillStyle=color;
+        ctx.beginPath();
+        ctx.roundRect(x,y,CELL,CELL,2);
+        ctx.fill();
+      }
+    }
+    // Layer labels left
+    ctx.fillStyle='rgba(133,141,160,0.6)';
+    ctx.font='9px DM Mono, monospace';
+    ctx.textAlign='right';
+    for(let row=0;row<ROWS;row++){
+      ctx.fillText(`L${row+1}`, -4, row*(CELL+GAP)+CELL-3);
+    }
+  }
+
+  function step(){
+    if(currentPos < COLS-1){ currentPos++; }
+    else { cachedUntil = currentPos; currentPos = 0; }
+    draw();
+    animId = setTimeout(step, 120);
+  }
+  draw();
+  step();
+})();
+
+// ═══════════════════════════════════════════
+// 4. TOKENIZATION VIEWER
+// ═══════════════════════════════════════════
+(function(){
+  const el = document.getElementById('chart-tokens');
+  if(!el) return;
+
+  const EXAMPLE = [
+    {text:'<|system|>',   cat:'special',  c:'#f4c53e'},
+    {text:'You',          cat:'user',     c:'#4ef09a'},
+    {text:' are',         cat:'user',     c:'#4ef09a'},
+    {text:' a',           cat:'user',     c:'#4ef09a'},
+    {text:' helpful',     cat:'user',     c:'#4ef09a'},
+    {text:' assistant',   cat:'user',     c:'#4ef09a'},
+    {text:'<|endoftext|>',cat:'special',  c:'#f4c53e'},
+    {text:'<|user|>',     cat:'special',  c:'#f4c53e'},
+    {text:'What',         cat:'query',    c:'#2dd4f5'},
+    {text:' is',          cat:'query',    c:'#2dd4f5'},
+    {text:' weather',     cat:'query',    c:'#2dd4f5'},
+    {text:' in',          cat:'query',    c:'#2dd4f5'},
+    {text:' Tokyo',       cat:'query',    c:'#2dd4f5'},
+    {text:'?',            cat:'query',    c:'#2dd4f5'},
+    {text:'<|tool|>',     cat:'special',  c:'#f4c53e'},
+    {text:'get',          cat:'tool',     c:'#9d7ff7'},
+    {text:'_weather',     cat:'tool',     c:'#9d7ff7'},
+    {text:'city',         cat:'tool',     c:'#9d7ff7'},
+    {text:' str',         cat:'tool',     c:'#9d7ff7'},
+    {text:'<|/tool|>',    cat:'special',  c:'#f4c53e'},
+    {text:'<|assistant|>',cat:'special',  c:'#f4c53e'},
+    {text:'I\'ll',        cat:'gen',      c:'#ff6630'},
+    {text:' look',        cat:'gen',      c:'#ff6630'},
+    {text:' up',          cat:'gen',      c:'#ff6630'},
+    {text:'...',          cat:'gen',      c:'#ff6630'},
+  ];
+
+  const W=el.offsetWidth||680;
+  const H=110;
+  const svg=d3.select(el).append('svg').attr('width',W).attr('height',H);
+  const g=svg.append('g').attr('transform','translate(8,20)');
+
+  let cx=0, row=0;
+  const rowH=46;
+
+  EXAMPLE.forEach((tok,i)=>{
+    const tw = Math.max(tok.text.length*7.5+14, 26);
+    if(cx+tw > W-16){ cx=0; row++; }
+    const rx=cx, ry=row*rowH;
+
+    g.append('rect').attr('x',rx).attr('y',ry).attr('width',tw).attr('height',28)
+      .attr('rx',4).attr('fill',tok.c+'22').attr('stroke',tok.c).attr('stroke-width',1)
+      .attr('opacity',0).transition().duration(280).delay(i*40).attr('opacity',1);
+
+    g.append('text').attr('x',rx+tw/2).attr('y',ry+18).attr('text-anchor','middle')
+      .attr('font-size',10).attr('fill',tok.c).attr('opacity',0)
+      .text(tok.text.length>10?tok.text.slice(0,9)+'…':tok.text)
+      .transition().duration(280).delay(i*40).attr('opacity',1);
+
+    g.append('text').attr('x',rx+tw/2).attr('y',ry+40).attr('text-anchor','middle')
+      .attr('font-size',8).attr('fill',P.text3).text(1000+i);
+
+    cx+=tw+4;
+  });
+
+  // Legend
+  const cats=[{l:'System/Special',c:'#f4c53e'},{l:'User Text',c:'#4ef09a'},{l:'Query',c:'#2dd4f5'},{l:'Tool Schema',c:'#9d7ff7'},{l:'Generated',c:'#ff6630'}];
+  const leg=svg.append('g').attr('transform',`translate(8,${H-14})`);
+  let lx=0;
+  cats.forEach(cat=>{
+    leg.append('rect').attr('x',lx).attr('y',0).attr('width',8).attr('height',8).attr('rx',2).attr('fill',cat.c);
+    leg.append('text').attr('x',lx+11).attr('y',8).attr('font-size',9).attr('fill',P.text).text(cat.l);
+    lx+=cat.l.length*6+24;
+  });
+})();
+
+// ═══════════════════════════════════════════
+// 5. ATTENTION HEATMAP — Interactive
+// ═══════════════════════════════════════════
+(function(){
+  const cv = document.getElementById('attn-canvas');
+  if(!cv) return;
+  const ctx = cv.getContext('2d');
+
+  const TOKENS = ['<sys>', 'You', 'are', 'helpful', '</s>', '<usr>', 'What', 'weather', 'Tokyo', '?', '<tool>', 'get_w', 'city', '</tool>', '<asst>', 'I\'ll', 'look', 'up', '...'];
+  const N = TOKENS.length;
+
+  let hoverRow = -1;
+  let headType = 0; // 0=local 1=tool-focus 2=copy 3=positional
+  let layerDepth = 4;
+  let tempVal = 8;
+
+  function genAttn(n, head, layer, temp){
+    // Generate synthetic attention patterns based on head type
+    const A = [];
+    for(let i=0;i<n;i++){
+      const row=[];
+      for(let j=0;j<=i;j++){
+        let w=0;
+        if(head===0){ // local
+          w = Math.exp(-Math.abs(i-j)*0.6 + (Math.random()-0.5)*0.4);
+        } else if(head===1){ // tool schema focus
+          const toolRange = j>=10&&j<=13 ? 1.4 : 0;
+          w = Math.exp(toolRange + (j===i?0.3:0) + (Math.random()-0.5)*0.3);
+        } else if(head===2){ // copy
+          w = Math.random()*0.2 + (j===0?0.6:0) + (j===i?0.4:0);
+        } else { // positional
+          w = Math.exp(-Math.pow(i-j,2)*0.08*layer*(temp/8));
+        }
+        row.push(w);
+      }
+      // softmax
+      const sum = row.reduce((a,b)=>a+b,0.001);
+      A.push(row.map(v=>v/sum));
+    }
+    return A;
+  }
+
+  let attnData = genAttn(N, headType, layerDepth, tempVal);
+
+  function draw(){
+    const W=cv.width, H=cv.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#0d1017';
+    ctx.fillRect(0,0,W,H);
+
+    const CELL = Math.min(Math.floor((W-140)/N), Math.floor((H-40)/N));
+    const offX=100, offY=20;
+
+    // Draw cells
+    for(let i=0;i<N;i++){
+      for(let j=0;j<=i;j++){
+        const v=attnData[i][j]||0;
+        const x=offX+j*CELL, y=offY+i*CELL;
+        // colour: use a cyan→green scale
+        const r=Math.round(lerp(10,78,v));
+        const g=Math.round(lerp(15,240,v));
+        const b=Math.round(lerp(20,154,v));
+        const highlight = (hoverRow===i);
+        ctx.fillStyle=highlight?`rgba(255,255,255,0.07)`:P.bg;
+        ctx.fillRect(x,y,CELL-1,CELL-1);
+        ctx.fillStyle=`rgba(${r},${g},${b},${Math.min(1,v*3+0.05)})`;
+        ctx.fillRect(x+1,y+1,CELL-2,CELL-2);
+      }
+      // Row label
+      ctx.fillStyle=hoverRow===i?'#e6e2da':P.text;
+      ctx.font=`${Math.min(9,CELL-2)}px DM Mono, monospace`;
+      ctx.textAlign='right';
+      ctx.fillText(TOKENS[i].length>6?TOKENS[i].slice(0,6)+'…':TOKENS[i], offX-4, offY+i*CELL+CELL-3);
+      // Col label
+      ctx.save(); ctx.translate(offX+i*CELL+CELL-3, offY-2); ctx.rotate(-Math.PI/2);
+      ctx.fillStyle=P.text3; ctx.textAlign='right';
+      ctx.fillText(TOKENS[i].length>6?TOKENS[i].slice(0,5)+'…':TOKENS[i], 0,0);
+      ctx.restore();
+    }
+
+    // Hover highlight row outline
+    if(hoverRow>=0){
+      ctx.strokeStyle=P.accent;ctx.lineWidth=1;
+      ctx.strokeRect(offX,offY+hoverRow*CELL,(hoverRow+1)*CELL,CELL-1);
+    }
+  }
+
+  function lerp(a,b,t){return a+(b-a)*Math.min(1,Math.max(0,t));}
+
+  cv.addEventListener('mousemove', e=>{
+    const rect=cv.getBoundingClientRect();
+    const my=(e.clientY-rect.top);
+    const CELL=Math.min(Math.floor((cv.width-140)/N),Math.floor((cv.height-40)/N));
+    hoverRow=Math.floor((my-20)/CELL);
+    if(hoverRow<0||hoverRow>=N) hoverRow=-1;
+    draw();
+  });
+  cv.addEventListener('mouseleave',()=>{hoverRow=-1;draw();});
+
+  document.getElementById('attn-head').addEventListener('change',e=>{
+    headType=+e.target.value;
+    attnData=genAttn(N,headType,layerDepth,tempVal);draw();
+  });
+  document.getElementById('attn-layer').addEventListener('input',e=>{
+    layerDepth=+e.target.value;
+    document.getElementById('attn-layer-val').textContent=e.target.value;
+    attnData=genAttn(N,headType,layerDepth,tempVal);draw();
+  });
+  document.getElementById('attn-temp').addEventListener('input',e=>{
+    tempVal=+e.target.value;
+    document.getElementById('attn-temp-val').textContent=(tempVal/10).toFixed(1);
+    attnData=genAttn(N,headType,layerDepth,tempVal);draw();
+  });
+  draw();
+})();
+
+// ═══════════════════════════════════════════
+// 6. SAMPLING DISTRIBUTION — Interactive
+// ═══════════════════════════════════════════
+(function(){
+  const cv=document.getElementById('sampling-canvas');
+  if(!cv) return;
+  const ctx=cv.getContext('2d');
+  cv.width=cv.offsetWidth||680; cv.height=180;
+
+  // Fixed logit values for ~20 representative tokens
+  const VOCAB=[
+    {label:'Tokyo',   z: 3.8},
+    {label:'Japan',   z: 2.9},
+    {label:'city',    z: 2.5},
+    {label:'weather', z: 2.1},
+    {label:'the',     z: 1.8},
+    {label:'"Tokyo"', z: 2.4},
+    {label:'東京',    z: 1.5},
+    {label:'capital', z: 1.2},
+    {label:'hot',     z: 0.9},
+    {label:'cold',    z: 0.7},
+    {label:'rainy',   z: 0.5},
+    {label:'sunny',   z: 0.4},
+    {label:'is',      z: 0.2},
+    {label:'here',    z:-0.3},
+    {label:'a',       z:-0.5},
+    {label:'to',      z:-0.9},
+    {label:'of',      z:-1.2},
+    {label:'…',       z:-2.0},
+  ];
+
+  const tempSlider=document.getElementById('temp-slider');
+  const toppSlider=document.getElementById('topp-slider');
+  const tempVal=document.getElementById('temp-val');
+  const toppVal=document.getElementById('topp-val');
+
+  function softmax(logits,T){
+    const ex=logits.map(v=>Math.exp(v/T));
+    const s=ex.reduce((a,b)=>a+b,0);
+    return ex.map(v=>v/s);
+  }
+
+  function draw(){
+    const T=+tempSlider.value/10;
+    const topP=+toppSlider.value/100;
+    tempVal.textContent=T.toFixed(1);
+    toppVal.textContent=topP.toFixed(2);
+
+    const probs=softmax(VOCAB.map(v=>v.z), T);
+    const sorted=[...probs.map((p,i)=>({p,i}))].sort((a,b)=>b.p-a.p);
+
+    // Compute nucleus (top-p) cutoff
+    let cumSum=0, nucleusIdx=sorted.length;
+    for(let k=0;k<sorted.length;k++){
+      cumSum+=sorted[k].p;
+      if(cumSum>=topP){ nucleusIdx=k+1; break; }
+    }
+
+    const W=cv.width, H=cv.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#0d1017';
+    ctx.fillRect(0,0,W,H);
+
+    const n=VOCAB.length;
+    const barW=Math.floor((W-48)/(n+1));
+    const maxP=Math.max(...probs)*1.15;
+
+    sorted.forEach((item,rank)=>{
+      const x=24+rank*barW;
+      const bH=Math.max(4,Math.floor((item.p/maxP)*(H-60)));
+      const y=H-40-bH;
+      const inNucleus=rank<nucleusIdx;
+
+      ctx.fillStyle=inNucleus?P.accent+'88':P.border;
+      ctx.beginPath();
+      ctx.roundRect(x+2,y,barW-4,bH,3);
+      ctx.fill();
+
+      if(inNucleus){
+        ctx.fillStyle=P.accent;
+        ctx.globalAlpha=0.25;
+        ctx.fillRect(x+2,y,barW-4,bH);
+        ctx.globalAlpha=1;
+      }
+
+      // Prob label on tall bars
+      if(bH>28){
+        ctx.fillStyle=inNucleus?P.accent:P.text3;
+        ctx.font='9px DM Mono,monospace';
+        ctx.textAlign='center';
+        ctx.fillText((item.p*100).toFixed(1)+'%', x+barW/2, y-4);
+      }
+
+      // Token label
+      ctx.fillStyle=inNucleus?P.text:P.text3;
+      ctx.font='9px DM Mono,monospace';
+      ctx.textAlign='center';
+      ctx.save();
+      ctx.translate(x+barW/2, H-22);
+      ctx.rotate(-Math.PI/4);
+      ctx.fillText(VOCAB[item.i].label,0,0);
+      ctx.restore();
+    });
+
+    // Nucleus boundary line
+    const cutX=24+nucleusIdx*barW;
+    ctx.strokeStyle=P.accent2;ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(cutX,H-38);ctx.lineTo(cutX,8);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=P.accent2;ctx.font='9px DM Mono,monospace';ctx.textAlign='left';
+    ctx.fillText(`top-p boundary (${topP})`,cutX+4,16);
+
+    // Axes
+    ctx.strokeStyle=P.border;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(24,H-38);ctx.lineTo(W-24,H-38);ctx.stroke();
+  }
+
+  tempSlider.addEventListener('input',draw);
+  toppSlider.addEventListener('input',draw);
+  window.addEventListener('resize',()=>{cv.width=cv.offsetWidth||680;draw();});
+  draw();
+})();
+
+// ═══════════════════════════════════════════
+// 7. AGENTIC LOOP SIMULATOR
+// ═══════════════════════════════════════════
+(function(){
+  const sim=document.getElementById('loop-sim');
+  const stats=document.getElementById('loop-stats');
+  if(!sim) return;
+
+  const STEPS=[
+    {role:'user',    text:'Research the latest climate data for Tokyo and give me a summary.',tokens:24,lat:0,type:'user'},
+    {role:'assistant',text:'I\'ll search for climate data and run an analysis. Calling tools...',tokens:31,lat:280,type:'asst'},
+    {role:'tool_use', text:'web_search({ query: "Tokyo climate 2025 temperature data" })',tokens:18,lat:0,type:'tool'},
+    {role:'tool_result',text:'Result: 58 records returned. Avg temp 16.2°C, +1.4°C vs 20-yr mean. Rainfall down 8%.',tokens:42,lat:820,type:'result'},
+    {role:'tool_use', text:'code_interpreter({ code: "import pandas as pd; df=pd.read_json(...)..." })',tokens:38,lat:0,type:'tool'},
+    {role:'tool_result',text:'Output: chart.png generated. Trend: +0.18°C/decade since 1990.',tokens:35,lat:1100,type:'result'},
+    {role:'assistant',text:'Based on the data, Tokyo has warmed 1.4°C above the 20-year mean...',tokens:120,lat:420,type:'asst'},
+  ];
+
+  let currentStep=-1;
+  let totalTokens=0, totalLat=0, toolCalls=0;
+
+  function colorForType(t){
+    if(t==='user') return P.accent2;
+    if(t==='asst') return P.accent;
+    if(t==='tool') return P.amber;
+    if(t==='result') return P.purple;
+    return P.text;
+  }
+  function labelForType(t){
+    if(t==='user') return 'USER';
+    if(t==='asst') return 'ASSISTANT';
+    if(t==='tool') return 'TOOL_USE';
+    if(t==='result') return 'TOOL_RESULT';
+    return t.toUpperCase();
+  }
+
+  function render(){
+    sim.innerHTML='';
+    STEPS.slice(0,currentStep+1).forEach((step,i)=>{
+      const isActive=i===currentStep;
+      const div=document.createElement('div');
+      div.className='loop-turn'+(isActive?' active':'')+(step.type==='tool'?' tool':'')+(step.type==='result'?' result':'');
+      const c=colorForType(step.type);
+      div.innerHTML=`<span class="loop-turn-badge" style="background:${c}22;color:${c};border:1px solid ${c}44">${labelForType(step.type)}</span>`+
+        `<span style="color:${isActive?'var(--text)':'var(--text2)'};font-size:12px">${step.text}</span>`+
+        `<span style="float:right;font-size:10px;color:var(--text3)">${step.tokens} tok${step.lat?` · ${step.lat}ms`:''}</span>`;
+      sim.appendChild(div);
+    });
+
+    stats.innerHTML=`
+      <span><span style="color:var(--accent)">Context:</span> ${totalTokens.toLocaleString()} tokens</span>
+      <span><span style="color:var(--amber)">Tool calls:</span> ${toolCalls}</span>
+      <span><span style="color:var(--accent2)">Elapsed:</span> ~${(totalLat/1000).toFixed(2)}s</span>
+      <span><span style="color:var(--purple)">Steps:</span> ${currentStep+1}/${STEPS.length}</span>`;
+  }
+
+  document.getElementById('loop-next').addEventListener('click',()=>{
+    if(currentStep<STEPS.length-1){
+      currentStep++;
+      const step=STEPS[currentStep];
+      totalTokens+=step.tokens;
+      totalLat+=step.lat;
+      if(step.type==='tool') toolCalls++;
+      render();
+    }
+  });
+  document.getElementById('loop-reset').addEventListener('click',()=>{
+    currentStep=-1; totalTokens=0; totalLat=0; toolCalls=0; render();
+  });
+  render();
+})();
+
+// ═══════════════════════════════════════════
+// 8. TTFT CHART
+// ═══════════════════════════════════════════
+(function(){
+  const el=document.getElementById('chart-ttft');
+  if(!el) return;
+  const W=el.offsetWidth||680, H=240;
+  const m={top:20,right:60,bottom:44,left:64};
+  const iW=W-m.left-m.right, iH=H-m.top-m.bottom;
+  const pts=d3.range(200,16200,800).map(n=>({
+    n, cold:180+n*.042+(Math.random()-0.5)*18, cached:175+n*.004+(Math.random()-0.5)*10
+  }));
+  const svg=d3.select(el).append('svg').attr('width',W).attr('height',H);
+  const g=svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
+  const x=d3.scaleLinear().domain([0,16000]).range([0,iW]);
+  const y=d3.scaleLinear().domain([0,d3.max(pts,d=>d.cold)*1.12]).range([iH,0]);
+
+  g.selectAll('.glh').data(y.ticks(5)).enter().append('line')
+    .attr('x1',0).attr('x2',iW).attr('y1',d=>y(d)).attr('y2',d=>y(d))
+    .attr('stroke',P.border).attr('stroke-dasharray','3,5');
+
+  // Area
+  g.append('path').datum(pts)
+    .attr('d',d3.area().x(d=>x(d.n)).y0(iH).y1(d=>y(d.cold)).curve(d3.curveCatmullRom))
+    .attr('fill',P.accent2).attr('opacity',.07);
+
+  const pathCold=g.append('path').datum(pts)
+    .attr('d',d3.line().x(d=>x(d.n)).y(d=>y(d.cold)).curve(d3.curveCatmullRom))
+    .attr('fill','none').attr('stroke',P.accent2).attr('stroke-width',2.5);
+  const pathCached=g.append('path').datum(pts)
+    .attr('d',d3.line().x(d=>x(d.n)).y(d=>y(d.cached)).curve(d3.curveCatmullRom))
+    .attr('fill','none').attr('stroke',P.accent).attr('stroke-width',2).attr('stroke-dasharray','6,4');
+
+  // Animate paths on scroll into view
+  [pathCold,pathCached].forEach(p=>{
+    const len=p.node().getTotalLength();
+    p.attr('stroke-dasharray',`${len} ${len}`).attr('stroke-dashoffset',len);
+    const obs=new IntersectionObserver(entries=>{
+      entries.forEach(e=>{ if(e.isIntersecting){
+        p.transition().duration(1200).attr('stroke-dashoffset',0);
+        obs.disconnect();
+      }});
+    },{threshold:.3});
+    obs.observe(el);
+  });
+
+  g.append('g').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x).tickFormat(d=>`${d/1000}k`).ticks(8))
+    .call(g=>g.select('.domain').attr('stroke',P.border))
+    .call(g=>g.selectAll('.tick line').attr('stroke',P.border))
+    .call(g=>g.selectAll('text').attr('fill',P.text3).attr('font-size',10));
+  g.append('g').call(d3.axisLeft(y).tickFormat(d=>`${d}ms`).ticks(5))
+    .call(g=>g.select('.domain').attr('stroke',P.border))
+    .call(g=>g.selectAll('.tick line').attr('stroke',P.border))
+    .call(g=>g.selectAll('text').attr('fill',P.text3).attr('font-size',10));
+
+  g.append('text').attr('x',iW-8).attr('y',y(pts[pts.length-1].cold)-10)
+    .attr('text-anchor','end').attr('fill',P.accent2).attr('font-size',11).text('Cold (no cache)');
+  g.append('text').attr('x',iW-8).attr('y',y(pts[pts.length-1].cached)-10)
+    .attr('text-anchor','end').attr('fill',P.accent).attr('font-size',11).text('Prompt cached');
+  g.append('text').attr('x',iW/2).attr('y',iH+38).attr('text-anchor','middle').attr('fill',P.text3).attr('font-size',11).text('Input Prompt Length (tokens)');
+  g.append('text').attr('transform','rotate(-90)').attr('x',-iH/2).attr('y',-48).attr('text-anchor','middle').attr('fill',P.text3).attr('font-size',11).text('TTFT (ms)');
+})();
+
+// ═══════════════════════════════════════════
+// 9. THROUGHPUT CHART
+// ═══════════════════════════════════════════
+(function(){
+  const el=document.getElementById('chart-throughput');
+  if(!el) return;
+  const W=el.offsetWidth||680, H=240;
+  const m={top:20,right:60,bottom:44,left:64};
+  const iW=W-m.left-m.right, iH=H-m.top-m.bottom;
+  const bs=[1,2,4,8,16,32,64,128];
+  const std=bs.map(b=>({b,tps:62*Math.sqrt(b)*(1-b/320)+(Math.random()-0.5)*8}));
+  const spec=bs.map(b=>({b,tps:128*Math.sqrt(b)*(1-b/380)+(Math.random()-0.5)*8}));
+  const svg=d3.select(el).append('svg').attr('width',W).attr('height',H);
+  const g=svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
+  const x=d3.scaleLog().domain([1,128]).range([0,iW]);
+  const y=d3.scaleLinear().domain([0,d3.max(spec,d=>d.tps)*1.15]).range([iH,0]);
+
+  g.selectAll('.glh').data(y.ticks(5)).enter().append('line')
+    .attr('x1',0).attr('x2',iW).attr('y1',d=>y(d)).attr('y2',d=>y(d))
+    .attr('stroke',P.border).attr('stroke-dasharray','3,5');
+
+  g.append('path').datum(std).attr('d',d3.line().x(d=>x(d.b)).y(d=>y(d.tps)).curve(d3.curveCatmullRom))
+    .attr('fill','none').attr('stroke',P.accent2).attr('stroke-width',2.5);
+  g.append('path').datum(spec).attr('d',d3.line().x(d=>x(d.b)).y(d=>y(d.tps)).curve(d3.curveCatmullRom))
+    .attr('fill','none').attr('stroke',P.accent).attr('stroke-width',2.5);
+
+  // Dots
+  [std,spec].forEach((data,di)=>{
+    g.selectAll(`.dot${di}`).data(data).enter().append('circle')
+      .attr('cx',d=>x(d.b)).attr('cy',d=>y(d.tps)).attr('r',3)
+      .attr('fill',di===0?P.accent2:P.accent);
+  });
+
+  g.append('g').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x).tickValues(bs).tickFormat(d=>`${d}`))
+    .call(g=>g.select('.domain').attr('stroke',P.border))
+    .call(g=>g.selectAll('.tick line').attr('stroke',P.border))
+    .call(g=>g.selectAll('text').attr('fill',P.text3).attr('font-size',10));
+  g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d=>`${Math.round(d)}`))
+    .call(g=>g.select('.domain').attr('stroke',P.border))
+    .call(g=>g.selectAll('.tick line').attr('stroke',P.border))
+    .call(g=>g.selectAll('text').attr('fill',P.text3).attr('font-size',10));
+
+  g.append('text').attr('x',iW-8).attr('y',y(std[std.length-1].tps)-10).attr('text-anchor','end').attr('fill',P.accent2).attr('font-size',11).text('Standard decoding');
+  g.append('text').attr('x',iW-8).attr('y',y(spec[spec.length-1].tps)+18).attr('text-anchor','end').attr('fill',P.accent).attr('font-size',11).text('Speculative decoding');
+  g.append('text').attr('x',iW/2).attr('y',iH+38).attr('text-anchor','middle').attr('fill',P.text3).attr('font-size',11).text('Batch Size');
+  g.append('text').attr('transform','rotate(-90)').attr('x',-iH/2).attr('y',-48).attr('text-anchor','middle').attr('fill',P.text3).attr('font-size',11).text('Throughput (tok/s)');
+})();
+
+// ═══════════════════════════════════════════
+// 10. E2E LATENCY — animated stacked bar
+// ═══════════════════════════════════════════
+(function(){
+  const el=document.getElementById('chart-e2e');
+  if(!el) return;
+  const W=el.offsetWidth||680, H=176;
+  const m={top:28,right:16,bottom:82,left:20};
+  const iW=W-m.left-m.right;
+  const segs=[
+    {label:'Net RTT',     ms:75,  c:P.text},
+    {label:'Gateway',     ms:22,  c:P.amber},
+    {label:'Context Asm', ms:14,  c:P.accent2},
+    {label:'Prefill',     ms:290, c:P.purple},
+    {label:'Tool Exec',   ms:340, c:P.orange},
+    {label:'2nd Infer',   ms:220, c:P.accent2},
+    {label:'Streaming',   ms:410, c:P.accent},
+    {label:'Telemetry',   ms:18,  c:P.text3},
+  ];
+  const total=segs.reduce((s,d)=>s+d.ms,0);
+  const svg=d3.select(el).append('svg').attr('width',W).attr('height',H);
+  const g=svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
+
+  let cx=0;
+  segs.forEach((s,i)=>{
+    const bw=(s.ms/total)*iW;
+    const rect=g.append('rect').attr('x',cx).attr('y',4).attr('width',0).attr('height',36)
+      .attr('fill',s.c).attr('rx',2).attr('opacity',.9);
+
+    const obs=new IntersectionObserver(entries=>{
+      entries.forEach(e=>{ if(e.isIntersecting){
+        rect.transition().duration(600).delay(i*55).attr('width',Math.max(1,bw-2));
+        obs.disconnect();
+      }});
+    },{threshold:.5});
+    obs.observe(el);
+
+    if(bw>32){
+      g.append('text').attr('x',cx+bw/2-1).attr('y',27).attr('text-anchor','middle')
+        .attr('font-size',9).attr('fill','#080a0f').attr('font-weight','600').text(`${s.ms}ms`);
+    }
+    if(bw>44){
+      g.append('text').attr('x',cx+bw/2-1).attr('y',56 + (i%2)*18).attr('text-anchor','middle')
+        .attr('font-size',8.5).attr('fill',P.text3)
+        .text(s.label);
+    }
+    cx+=bw;
+  });
+  g.append('text').attr('x',iW).attr('y',0).attr('text-anchor','end')
+    .attr('fill',P.accent).attr('font-size',12).attr('font-weight','500').text(`Total ≈ ${total}ms`);
+})();
+
+}); // DOMContentLoaded
+</script>
+
+</body>
+</html>

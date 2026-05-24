@@ -59,6 +59,20 @@ main {
   overflow: hidden;
 }
 
+.agentic-blog-frame-page {
+  background: #050505;
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.agentic-blog-frame {
+  border: 0;
+  display: block;
+  height: 100vh;
+  width: 100%;
+}
+
 .site-header,
 .subpage-header {
   align-items: center;

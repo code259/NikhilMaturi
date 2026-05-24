@@ -26,6 +26,18 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   if (!post) notFound();
 
+  if (slug === "agentic-tool-use") {
+    return (
+      <main className="agentic-blog-frame-page">
+        <iframe
+          className="agentic-blog-frame"
+          src="/agentic-tool-use.html"
+          title={post.title}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="detail-page">
       <header className="subpage-header">
