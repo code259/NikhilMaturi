@@ -29,6 +29,17 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   if (slug === "agentic-tool-use") {
     return (
       <main className="agentic-blog-frame-page">
+        <header className="subpage-header agentic-blog-nav">
+          <Link href="/" className="brand">
+            NM
+          </Link>
+          <nav aria-label="Primary navigation">
+            <Link href="/#about">About</Link>
+            <Link href="/#research">Research</Link>
+            <Link href="/blog">Blog</Link>
+            <Link href="/#contact">Contact</Link>
+          </nav>
+        </header>
         <iframe
           className="agentic-blog-frame"
           src="/agentic-tool-use.html"
